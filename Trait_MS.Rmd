@@ -1,0 +1,82 @@
+---
+title: "NE Greenland Trait Analysis"
+author: "Phoebe Armitage"
+date: '2022-April'
+output:
+ html_document:
+  toc: TRUE
+  anchor_sections: TRUE
+  code_download: TRUE 
+  code_folding: "hide"
+  fig_caption: TRUE
+  theme:
+    bootswatch: "flatly"
+  bibliography: references.bib
+  link-citations: TRUE
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(message = FALSE)
+# to cite specific packages
+knitr::write_bib(c("base", "bookdown", "rmarkdown"), "packages.bib")
+```
+
+### Libraries and data
+
+To begin, we need to download our data for the analysis as well as
+install any packages or libraries from R.
+
+#### Libraries
+
+```{r}
+# load libraries 
+library(vegan)     
+library(devtools)  
+library(ggplot2)
+library(FD)
+library(adiv)
+library(RColorBrewer)
+```
+
+#### Read in the Data
+
+```{r}
+Taxa <- read.csv("~/Arctic Ph.D/Chapter 1. Functional analysis HMSC/Data/GitHub_NEG/Data for R/Abun_species_vegan.csv", 
+                 header=TRUE, sep=",", row = 1)
+Taxa <- Taxa[order(rownames(Taxa)),]
+Traits <- read.csv("~/Arctic Ph.D/Chapter 1. Functional analysis HMSC/Data/GitHub_NEG/Data for R/Abun_traits_vegan.csv", 
+                   header=TRUE, sep=",", row = 1)
+Env <- read.csv("~/Arctic Ph.D/Chapter 1. Functional analysis HMSC/Data/GitHub_NEG/Data for R/Env.csv",  header=TRUE, sep=",", row = 1)
+Env <- Env[order(rownames(Env)),]
+
+```
+
+### Taxa Indices
+
+```{r}
+#Species indices----------------------------------------------------------------
+#Taxa indices----------------------------------------------------------------
+indices <- data.frame(Abundance = rowSums(Taxa))
+indices$Sp.Richness <- specnumber(Taxa)
+indices$Shannon <- diversity(Taxa, index = "shannon")
+indices$Simpson <- diversity(Taxa, index = "simpson")
+indices$Evenness <- diversity(Taxa, index = "shannon")/log(specnumber(Taxa)) #Evenness
+indices$Habitat <- as.factor(Env$Habitat)
+```
+
+#### Table with taxa indices
+
+```{r}
+knitr::kable(indices,
+ caption = "Taxa Indices. Metrics calculated using Vegan package")
+```
+
+### References
+
+@Manual{R-base, title = {R: A Language and Environment for Statistical
+Computing}, author = {{R Core Team}}, organization = {R Foundation for
+Statistical Computing}, address = {Vienna, Austria}, year = {2019}, url
+= {<https://www.R-project.org>}, }
