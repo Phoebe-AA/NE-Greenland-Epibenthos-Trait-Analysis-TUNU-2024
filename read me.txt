@@ -1,5 +1,20 @@
-This GitHub has been set up to be able to re-run all the analyses for "" manuscript. 
+This GitHub account has been set up to be able to re-run all the analyses for 
+"Diverging spatial patterns in trait diversity of epibenthic communities in fjord to slope habitats of the high Arctic" 
+manuscript by Phoebe Armitage et al., 2023. 
 
+READ ME
+I encourage you to read this read me file before continuing with any analysis. 
+I have outlined below how you can access the raw data and a brief description of the RMarkdown files 
+found in this GitHub resource. 
+
+DATA
+All data (taxa abundance or biomass data, taxononmic trees (phy or P), traits, and environmental data)
+are stored in R files, allData_A.R and allData_B.R. 
+These can be downloaded and opened in R, where you will then have all of data frames in your global Environment. 
+The RMarkdown files will guide you to be able to assign names for the downloaded files. 
+See information on RMarkdown files below.  
+
+CODE
 The code has been broken down into three main RMarkdown files:
 1) The biodiversity and functional indices
 2) NMDS: analysis, statistics, and plotting. 

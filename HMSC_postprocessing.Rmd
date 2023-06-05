@@ -1,0 +1,297 @@
+---
+title: "NE Greenland Trait Analysis: HMSC post-processing"
+author: "Phoebe Armitage"
+date: '2023-June'
+output:
+ html_document:
+  toc: TRUE
+  anchor_sections: TRUE
+  code_download: TRUE 
+  code_folding: "hide"
+  fig_caption: TRUE
+  theme:
+    bootswatch: "flatly"
+  bibliography: references.bib
+  link-citations: TRUE
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.show = "hide", results = "hide")
+# to cite specific packages
+knitr::write_bib(c("base", "bookdown", "rmarkdown"), "packages.bib")
+```
+
+#### Load libraries
+```{r}
+library(Hmsc)
+library(colorspace)
+library(vioplot)
+library(parallel)
+library(corrplot)
+library(dplyr)
+library(RColorBrewer)
+library(ggplot2)
+library(viridis)
+library(tidyr)
+```
+#### Load model and set new parameters
+include in samples_list and thin_list only those model that you have actually fitted
+```{r}
+load("models/models_thin_1000_samples_250_chains_4.Rdata") #model, modelnames
+models
+modelnames
+model <- models
+```
+
+```{r}
+samples_list = 250#c(5, 250,250,250)
+thin_list = c(1000)#c(1,1,10,100)
+nst = length(thin_list)
+nChains = 4
+```
+
+
+#### Evaluate converge 
+##### Checking BETA parameter diagnostics 
+```{r}
+mpost = convertToCodaObject(model[[1]])
+postBeta = getPostEstimate(model[[1]], parName = "Beta") 
+ess.beta = effectiveSize(mpost$Beta)
+mean(ess.beta)
+psrf.beta = gelman.diag(mpost$Beta, multivariate = FALSE, autoburnin = FALSE)$psrf
+hist(ess.beta)
+hist(psrf.beta, xlab="Potential scale reduction factor (beta)")
+mean(gelman.diag(mpost$Beta, multivariate = FALSE, autoburnin = FALSE)$psrf)
+sd(gelman.diag(mpost$Beta, multivariate = FALSE, autoburnin = FALSE)$psrf)
+max(gelman.diag(mpost$Beta, multivariate = FALSE, autoburnin = FALSE)$psrf)
+```
+Plot the diagnostics
+```{r}
+par(mfrow=c(2,1))
+vioplot(psrf.beta,col=rainbow_hcl(1), ylim=c(0,max(psrf.beta)),
+        main="psrf(beta)")
+vioplot(psrf.beta,col=rainbow_hcl(1),ylim=c(0.98,1.04),
+        main="psrf(beta)")
+```
+Check summaries 
+```{r}
+summary(ma)
+model
+```
+##### Checking GAMMA parameter diagnostics
+```{r}
+ess.gamma = effectiveSize(mpost$Gamma)
+mean(ess.gamma)
+psrf.gamma = gelman.diag(mpost$Gamma, multivariate = FALSE, autoburnin = FALSE)$psrf
+hist(ess.gamma)
+hist(psrf.gamma, xlab="Potential scale reduction factor (gamma)")
+mean(gelman.diag(mpost$Gamma, multivariate = FALSE, autoburnin = FALSE)$psrf)
+sd(gelman.diag(mpost$Gamma, multivariate = FALSE, autoburnin = FALSE)$psrf)
+max(gelman.diag(mpost$Gamma, multivariate = FALSE, autoburnin = FALSE)$psrf)
+```
+Plot the diagnostics
+```{r}
+vioplot(psrf.gamma,col=rainbow_hcl(1),ylim=c(0,max(psrf.gamma)),
+        main="psrf(gamma)")
+vioplot(psrf.gamma,col=rainbow_hcl(1),ylim=c(0.98,1.04),
+        main="psrf(gamma)")
+```
+Check summaries  
+```{r}
+summary(ma)
+model
+```
+
+##### Checking RHO parameter diagnostics
+```{r}
+summary(mpost$Rho) # posterior distribution of rho reveals strong evidence for phylogenetic signal p = 1
+#mpost$Rho
+effectiveSize(mpost$Rho)
+#gelman.diag(mpost$Rho)$psrf
+gelman.diag(mpost$Rho, multivariate = FALSE, autoburnin = FALSE)$psrf
+max(gelman.diag(mpost$Rho, multivariate = FALSE, autoburnin = FALSE)$psrf)
+sd(gelman.diag(mpost$Rho, multivariate = FALSE, autoburnin = FALSE)$psrf)
+```
+
+#### Beta Plot 
+```{r}
+for(j in 1:nm){
+  m = model[[j]]
+  postBeta = getPostEstimate(m, parName="Beta")
+  show.sp.names = (is.null(m$phyloTree) && m$ns<=20) 
+  plotBeta(m, post=postBeta, supportLevel = 0.90,param="Sign",
+           plotTree = !is.null(m$phyloTree),
+           covNamesNumbers = c(TRUE,FALSE),
+           spNamesNumbers=c(show.sp.names,FALSE),
+           cex = c(1, 1, 1), mar=c(8,0,1,0), marTree = c(8,5,1,0), 
+           #cex=c(0.6,0.6,0.8),  
+           split = 0.4, 
+           colors = colorRampPalette(c("darkslategray3","white", "darkslategray")))
+  mymain = paste0("BetaPlot, ",modelnames[[j]])
+  if(!is.null(m$phyloTree)){
+    mpost = convertToCodaObject(m)
+    rhovals = unlist(poolMcmcChains(mpost$Rho))
+    mymain = paste0(mymain,", E[rho] = ",round(mean(rhovals),2),", Pr[rho>0] = ",round(mean(rhovals>0),2))
+  }
+  title(main=mymain, line=2.5, cex.main=0.8)
+  
+  me = as.data.frame(t(postBeta$mean))
+  me = cbind(m$spNames,me)
+  colnames(me) = c("Species",m$covNames)
+  po = as.data.frame(t(postBeta$support))
+  po = cbind(m$spNames,po)
+  colnames(po) = c("Species",m$covNames)
+  ne = as.data.frame(t(postBeta$supportNeg))
+  ne = cbind(m$spNames,ne)
+  colnames(ne) = c("Species",m$covNames)
+  vals = list("Posterior mean"=me,"Pr(x>0)"=po,"Pr(x<0)"=ne)
+}
+
+```
+
+#### Gamma Plot 
+```{r}
+for(j in 1:nm){
+  if(m$nt>1){
+    m = model[[j]]
+    postGamma = getPostEstimate(m, parName="Gamma")
+    plotGamma(m, post=postGamma, supportLevel = 0.90, param="Sign",
+              covNamesNumbers = c(TRUE,FALSE),
+              trNamesNumbers=c(TRUE,FALSE),
+              #cex=c(0.6,0.6,0.8), 
+             mar=c(8,10,1,0),
+              cex = c(1, 1, 1), colors = colorRampPalette(c("darkslategray3","white", "darkslategray")))
+    title(main=paste0("GammaPlot ",modelnames[[j]]), line=2.5,cex.main=0.8)
+  }
+}
+```
+
+##### Variance Partitioning 
+```{r}
+head(model$X)
+par(mfrow=c(1,1))
+VP <- computeVariancePartitioning(model[[1]])
+(VP$R2T$Beta) #The proportions of variance in species niches explained by traits included in the model. 
+#A major part of the variation among species niches related to their responses to habitat quality is explained by the traits. 
+
+(VP$R2T$Y) #  the proportion of variance that the included traits explain out of species abundances
+
+VP
+```
+
+Save as a dataframe
+```{r}
+v.part <- as.data.frame(VP$vals)
+v.part <- as.data.frame(t(v.part))
+v.part$Taxa <- rownames(v.part)
+v.part$TjurR2 <- MF$TjurR2
+v.part$RMSE <- MF$RMSE
+(v.part)
+```
+Plot Variance partitioning 
+```{r}
+#1. Make explained partition data frame.
+Sp.var.part <- data.frame((v.part$TjurR2/rowSums(v.part[1:8]))*v.part[1:8])
+rowSums((v.part$TjurR2/rowSums(v.part[1:8]))*v.part[1:8])
+rowSums(Sp.var.part)
+Sp.var.part$TjurR2 <- v.part$TjurR2
+
+#2. Looks okay. Now order the data frame to most explained: 
+dim(Sp.var.part)
+Sp.var.part <- Sp.var.part[order(Sp.var.part$TjurR2),]
+Sp.var.part$Taxa <- 120:1 #30 or 46 
+Sp.var.part$Taxa_Names <- rownames(Sp.var.part)
+Sp.var.part
+
+#3. Change from wide to long data
+Sp.var.part2<- gather(Sp.var.part, Env, value, Depth, B.PSU, Oxygen,  
+                      B.Temp,
+                       Turbidity, Flourescence, 
+                       `Random..habitat`, `Random..sample`,factor_key=TRUE)
+
+#4. Set colour scheme 
+brewer.pal(8, "BrBG")
+
+col <- c("black", "darkslategray", "darkslategray4", "#5AB4AC", "darkslategray3", 
+         "lightcyan2", "#DFC27D","#F6E8C3")#, "#BF812D")#"sandybrown")
+
+
+
+# Stacked :
+Sp.var.part2$Taxa_Names <- sub("_", " ", Sp.var.part2$Taxa_Names)
+Sp.var.part2$Taxa_Names <- factor(Sp.var.part2$Taxa_Names, levels = unique(Sp.var.part2$Taxa_Names))
+Sp.var.part2
+
+Sp.var.part2_plot <- ggplot(Sp.var.part2, aes(fill=forcats::fct_infreq(Env), y=value, x=reorder(Taxa_Names, desc(Taxa_Names)))) + 
+  geom_bar(stat="identity", position = position_stack(reverse=TRUE)) + 
+  ylim(0,1)+
+  guides(fill = guide_legend(reverse=TRUE, nrow=4,byrow=TRUE)) + 
+  scale_fill_manual(values = col, 
+                    labels = 
+                    #c("Depth", "Temperature", "Salinity", "Oxygen",
+                    #  "Turbidity", "Fluorescence", "Random: Station", "Random: Habitat"))+
+                   c("Depth (mean = 25.6)","Temp (mean = 12.1)", "Salinity (mean = 20.9)","Oxygen (mean = 17.9)", 
+                        "Turbidity (mean = 11.4)","Flourescence (mean = 10.5)",
+                     "Random: station (mean = 1.1)","Random: Habitat (mean = 0.4)")) +
+  xlab ("Taxa") + 
+  ylab(expression(paste("Taxa niche explained variance partitioned ( ",italic("Tjur R"),{}^2,italic(")"))))+
+  theme(legend.position=c(0.75,0.8), legend.title = element_blank(),#("Mean explained variance (%)"),
+        legend.text = element_text(size = 16), legend.background = element_rect(fill="white"),
+        #panel.grid.major = element_line(colour = "gray90", linetype = 2),
+        #panel.grid.minor = element_line(colour = "gray85", linetype = 2),
+        panel.background = element_rect(fill = "white"),
+        #legend.box = "horizontal", 
+        axis.text=element_text(size = 16),
+        axis.title=element_text(size=18),#face="bold"),
+        plot.title = element_text(face= 2, size=20), 
+        legend.text.align = 1,
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 12))  
+
+Sp.var.part2_plot
+
+#ggsave("Variance_part.png",
+#       plot = Sp.var.part2_plot,
+#       width = 17,
+#       height = 10,
+#       units = "in",
+#       dpi = 400,
+#       limitsize = TRUE)
+```
+
+
+#### Other supplementary plots 
+```{r}
+subset(model$XData, model$XData$Habitat=="Fjord")
+subset(model$XData, model$XData$Habitat=="Shelf")
+subset(model$XData, model$XData$Habitat=="Shelfbreak")
+subset(model$XData, model$XData$Habitat=="Slope")
+```
+
+```{r}
+plot(Depth~Station, col=Habitat, pch=19,data = model$XData)
+plot(Oxygen~Station, col=Habitat, pch=19,data = model$XData)
+plot(Flourescence~Station, col=Habitat, pch=19,data = model$XData)
+plot(B.Temp~Station, col=Habitat, pch=19,data = model$XData)
+plot(B.PSU~Station, col=Habitat, pch=19,data = model$XData)
+plot(Turbidity~Station, col=Habitat, pch=19,data = model$XData)
+```
+
+```{r}
+par(mfrow=c(3,2), mar=c(4,4.5,1,0.5))
+boxplot(Depth~Habitat, pch=19,data = model$XData,
+        ylab = "Water Depth (m)")
+boxplot(B.Temp~Habitat, pch=19,data = model$XData,
+        ylab = "Bottom Temperature (\u00B0C)")
+boxplot(B.PSU~Habitat, pch=19,data = model$XData,
+        ylab = "Bottom Salinity (PSU)")
+boxplot(Oxygen~Habitat, pch=19,data = model$XData,
+        ylab = expression(paste("Bottom Oxygen (ml L"^" -1",")")))
+boxplot(Turbidity~Habitat, pch=19,data = model$XData,
+        ylab = "Turbidity (FTU)")
+boxplot(Flourescence~Habitat, pch=19,data = model$XData,
+        ylab = "Fluorescence")
+```
+
