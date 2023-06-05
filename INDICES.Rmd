@@ -55,7 +55,6 @@ Species <- Y
 Traits <- Tr
 Env <- X
 S
-str(Y)
 ```
 
 ### Biodiversity and Functional Indices
