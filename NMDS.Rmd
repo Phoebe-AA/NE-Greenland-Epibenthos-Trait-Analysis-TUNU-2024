@@ -1,0 +1,196 @@
+---
+title: "NE Greenland Trait Analysis: NDMS analysis and statistics"
+author: "Phoebe Armitage"
+date: '2023-June'
+output:
+ html_document:
+  toc: TRUE
+  anchor_sections: TRUE
+  code_download: TRUE 
+  code_folding: "hide"
+  fig_caption: TRUE
+  theme:
+    bootswatch: "flatly"
+  bibliography: references.bib
+  link-citations: TRUE
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.show = "hide", results = "hide")
+# to cite specific packages
+knitr::write_bib(c("base", "bookdown", "rmarkdown"), "packages.bib")
+```
+
+### Libraries and data
+
+To begin, we need to download our data for the analysis as well as
+install any packages or libraries from R.
+Note that for the first part (calculating the indices) it is the same code for both the abundance and biomass data sets. Therefore, you will need to run the code once for the abundance data set, and then run it again for biomass data set. You will see the lines of code that have a hash tag (#) that will need to be switched for abundance or biomass analyses.
+
+#### Libraries
+
+```{r}
+# load libraries 
+library(vegan)
+library(RColorBrewer)
+library(pairwiseAdonis)
+```
+
+#### Data
+
+```{r}
+# load taxa data 
+load("allData_A.R")
+# load("allData_B.R")
+
+# assign new names
+Phy <- P
+Species <- Y
+Traits <- Tr
+Env <- X
+S
+
+CWM <- read.csv(file = file.path('indices//CWM_A.csv'),
+                header = T, row.names = 1)
+
+#CWM <- read.csv(file = file.path('indices//CWM_B.csv'))
+```
+
+### NMDS Analysis
+Using the 'vegan' package, NMDS analysis is run on taxa data. 
+Followed by plotting and saving scores as a dataframe. 
+```{r}
+# RUN NMDS On species 
+nmds_sp <- metaMDS(Species, trymax=999, distance = "bray", 
+                   autotransform = TRUE) # bray curtis is the normal plot 
+plot(nmds_sp, type ="p", display = "sites")
+
+## Start from previous best solution
+nmds_sp <- metaMDS(Species, previous.best = nmds_sp)
+plot(nmds_sp, type ="t", display = "sites")
+
+# Save scores and make sure
+nmds.sp.scores <- as.data.frame(scores(nmds_sp)[1])
+nmds.sp.scores
+```
+
+The same code is ran on trait data.
+```{r}
+nmds_traits <- metaMDS(CWM, trymax=999, distance = "gower", 
+                       autotransform = F) # 
+
+plot(nmds_traits, type ="t", display = "sites")
+## Start from previous best solution
+nmds_traits <- metaMDS(CWM, previous.best = nmds_traits)
+plot(nmds_traits, type ="t", display = "sites")
+
+nmds.traits.scores <- as.data.frame(scores(nmds_traits)[1])
+nmds.traits.scores
+```
+
+### Plotting NMDS 
+A) Taxa Abundance data 
+```{r}
+par(mfrow=c(1,2))
+col_vec2 <- c("azure3", "cadetblue3", "aquamarine3", "antiquewhite3")
+# ELLIPSES FOR SPECIES 
+plot(nmds.sp.scores, col=brewer.pal(n = 4, name = "BrBG")[Env$Habitat], 
+     ylim=c(-1, 1), xlim=c(-1.5,1.5), 
+     type='n',
+     cex=1.2, main = "a) Abundance: Taxa Compositon Distance", xlab="NMDS1", ylab="NMDS2")
+ordiellipse(nmds.sp.scores, groups=S$Habitat, 
+            kind="ehull", col=brewer.pal(n = 4, name = "BrBG"), lwd=2)
+ordiellipse(nmds.sp.scores, groups=S$Habitat, 
+            draw="polygon", col=brewer.pal(n = 4, name = "BrBG"), lwd=2)
+ordispider(nmds.sp.scores, groups=S$Habitat, 
+           col=brewer.pal(n = 4, name = "BrBG"), label=TRUE)
+points(nmds.sp.scores, pch=21, col="black", bg=brewer.pal(n = 4, name = "BrBG")[S$Habitat], cex=0.7)
+```
+B) Abundance Trait data 
+```{r}
+plot(nmds.traits.scores, col=brewer.pal(n = 3, name = "BrBG")[S$Habitat], 
+     ylim=c(-0.6, 0.6), xlim=c(-1.2,1.2), cex=1.2, 
+     main = "b) Abundance: Trait CWM distance", xlab="NMDS1", ylab="NMDS2", type='n')
+ordiellipse(nmds_traits, groups=S$Habitat, 
+            kind="ehull", col=brewer.pal(n = 4, name = "BrBG"), lwd=2)
+ordiellipse(nmds_traits, groups=S$Habitat, 
+            draw="polygon", col=brewer.pal(n = 4, name = "BrBG"), lwd=2)
+ordispider(nmds_traits, groups=S$Habitat, 
+           col=brewer.pal(n = 4, name = "BrBG"), label=TRUE)
+points(nmds_traits, pch=21, col="black", bg=brewer.pal(n = 4, name = "BrBG")[S$Habitat], cex=0.7)
+```
+### Statistical testing 
+#### Distance matrix
+First to create a distance matrix using Curtis-Bray method for species and the gower methods for traits. The vegdist function is found in the 'vegan' package. 
+```{r}
+# Distance matrices 
+distances.Species<- vegdist(Species, method = "bray")
+distances.CWM<- vegdist(CWM, method = "gower")
+```
+
+#### Plot (dis)similarity 
+NB: This is only an exploratory plot and not used in the analysis, although quite insightful to see the spread of data. The last of the three plots shows taxa dissimilarity to be greater than trait dissimilarity between taxa. 
+```{r}
+plot(distances.Species, #col = Env$Habitat, 
+     pch = 19)
+plot(distances.CWM, #col = Env$Habitat, 
+     pch = 19)
+plot(distances.Species, #col = Env$Habitat, 
+     pch = 19, ylim=c(0,1), ylab = "Dissimiliarities distances")
+points(distances.CWM, #col = Env$Habitat, 
+     pch = 19, col = "grey")
+```
+
+#### Test for homogeniety of variances 
+```{r}
+#Test for normality 
+normal.test1 <- anova(betadisper(distances.Species, Env$Habitat)) 
+normal.test1 # F value is much smaller. P = 39% of the time we will get greater than 1
+# Conclude: the dispersion/variance of the data is equal 
+normal.test2 <- anova(betadisper(distances.CWM, Env$Habitat))
+normal.test2 # P = 19%
+# Conclude: the dispersion/variance of the data is equal 
+
+
+## ADONIS: tests for sig differences in communities among the habitat groups 
+test.species.1 <- adonis(Species~Habitat,
+                         data = Env, permutations = 999, method="bray")
+test.species.1 
+
+test.traits.1 <- adonis(CWM~Habitat,
+                        data = Env, permutations = 999, method="gower")
+test.traits.1
+# There is a sig difference between groups for both species and traits. 
+```
+
+#### ADONIS Pairwaise comparisons
+Pairwise comparisons for all pairs of levels of a factor by using for Permutational MANOVA.
+Note that the syntax here represents: 
+"A" for abundance (so you may want to change when running the biomass dataset)
+"sp" for species 
+"tr" for traits. 
+```{r}
+# Pairwise comparison for taxa
+A_sp_pairwise <- pairwise.adonis(Species, 
+                 Env$Habitat, 
+                 p.adjust.m='bonferroni')
+A_sp_pairwise <- as.data.frame(A_sp_pairwise)
+A_sp_pairwise
+
+# Pairwise comparison for traits
+A_tr_pairwise <- pairwise.adonis(CWM, 
+                 Env$Habitat, sim.method = "gower", 
+                 p.adjust.m='bonferroni')
+A_tr_pairwise <- as.data.frame(A_tr_pairwise)
+A_tr_pairwise
+
+# Join the two data frames 
+A_pairwise <- rbind(A_sp_pairwise, A_tr_pairwise)
+A_pairwise
+#write.csv(A_pairwise, "A_pairwise.csv")
+```
+
+#### Repeat the analysis from the beginning but with switching to the Biomass data set. 
