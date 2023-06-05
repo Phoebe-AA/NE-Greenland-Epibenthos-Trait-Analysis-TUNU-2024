@@ -260,7 +260,6 @@ hsd6
 
 ```{r}
 # plot
-png("Tukeys test results 2.png", width = 6, height = 10, units = 'in', res = 300)
 par(mfrow=c(3,2))
 plot(TukeyHSD(aov(log(Sp.rich)~Habitat,data=All_indices), "Habitat", group=T))
 plot(TukeyHSD(aov(sqrt(FRic)~Habitat,data=All_indices), "Habitat", group=T))
@@ -268,7 +267,6 @@ plot(TukeyHSD(aov(Simpson~Habitat,data=All_indices), "Habitat", group=T))
 plot(TukeyHSD(aov(FDiv~Habitat,data=All_indices), "Habitat", group=T))
 plot(TukeyHSD(aov(log(-All_indices$Vul2+1)~Habitat,data=All_indices), "Habitat", group=T))
 plot(TukeyHSD(aov(Red~Habitat,data=All_indices), "Habitat", group=T))
-dev.off()
 ```
 
 ```{r}
@@ -305,8 +303,6 @@ xpred <- xpred[order(xpred$Sp.ric),]
 
 ### Plotting figures 
 ```{r}
-png("indices//All_indices.png", width=9, height= 8, units ='in', pointsize=10, 
-    bg="white", res= 300)
 par(mfrow=c(3,3), mar=c(4,5,2,1))
 #Species & Funct richness-------------------------------------------------------
 summarized = All_indices %>% group_by(Habitat) %>% summarize(Sp.rich=max(Sp.rich))
@@ -403,8 +399,6 @@ grid()
 points(All_indices$Red[19:27] ~ All_indices$Sp.rich[19:27],cex=1.5,
        col="black", bg ="darkgrey", pch=21, cex.axis = 1.2, cex.lab = 1.3)
 title("i)", adj=0.01, line = 1, cex.main = 1.5)
-
-dev.off()
 ```
 
 

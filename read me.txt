@@ -1,0 +1,11 @@
+This GitHub has been set up to be able to re-run all the analyses for "" manuscript. 
+
+The code has been broken down into three main RMarkdown files:
+1) The biodiversity and functional indices
+2) NMDS: analysis, statistics, and plotting. 
+3) HMSC: Hierachical modelling of species communities. 
+
+The third part (HMSC) is more complex and so it is not ideal to run in R on your laptop. 
+For the analysis, we used CSC super computer where the analysis took 3-4 days to complete. 
+For our batch code, we used the text "HMSC_batchjob.txt" and for the presence-absense
+modelling you can see the code in HMSC_model_PA.R. 
