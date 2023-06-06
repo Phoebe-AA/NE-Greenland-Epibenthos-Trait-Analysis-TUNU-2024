@@ -24,7 +24,7 @@ knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.show = "hide", resul
 knitr::write_bib(c("base", "bookdown", "rmarkdown"), "packages.bib")
 ```
 
-### Load libraries
+## Load libraries
 ```{r}
 library(Hmsc)
 library(colorspace)
@@ -37,7 +37,7 @@ library(ggplot2)
 library(viridis)
 library(tidyr)
 ```
-### Load model
+## Load model
 
 ```{r}
 load("models/models_thin_1000_samples_250_chains_4.Rdata") #model, modelnames
@@ -45,7 +45,7 @@ models
 modelnames
 model <- models
 ```
-### Set parameters
+## Set parameters
 include in "samples_list" and "thin_list" only those in the model that you have actually fitted
 
 ```{r}
@@ -56,8 +56,8 @@ nChains = 4
 ```
 
 
-### Evaluate converge 
-#### BETA parameter 
+## Evaluate converge 
+### BETA parameter 
 Get Post sample estimates, effective size, and gelman diagnostics
 ```{r}
 mpost = convertToCodaObject(model[[1]])
@@ -85,7 +85,7 @@ vioplot(psrf.beta,col=rainbow_hcl(1),ylim=c(0.98,1.04),
         main="psrf(beta)")
 ```
 
-#### GAMMA parameter
+### GAMMA parameter
 Get Post sample estimates, effective size, and gelman diagnostics
 ```{r}
 ess.gamma = effectiveSize(mpost$Gamma)
@@ -111,7 +111,7 @@ vioplot(psrf.gamma,col=rainbow_hcl(1),ylim=c(0.98,1.04),
 ```
 
 
-#### RHO parameter
+### RHO parameter
 Get Post sample estimates, effective size, and gelman diagnostics
 ```{r}
 effectiveSize(mpost$Rho)
@@ -127,7 +127,7 @@ max(gelman.diag(mpost$Rho, multivariate = FALSE, autoburnin = FALSE)$psrf)
 sd(gelman.diag(mpost$Rho, multivariate = FALSE, autoburnin = FALSE)$psrf)
 ```
 
-### Beta Plot 
+## Beta Plot 
 ```{r}
 for(j in 1){
   m = model[[j]]
@@ -163,7 +163,7 @@ for(j in 1){
 
 ```
 
-### Gamma Plot 
+## Gamma Plot 
 ```{r}
 for(j in 1){
   if(m$nt>1){
@@ -179,7 +179,7 @@ for(j in 1){
   }
 }
 ```
-### Evaluate Model Fit 
+## Evaluate Model Fit 
 Compute and evaluate model using TjurR2 and AUC
 ```{r}
 preds <- computePredictedValues(model[[1]])
@@ -210,7 +210,7 @@ plot(MF$AUC~p_jitter,  xlab = "Prevalance", ylab = "AUC",
 ```
 
 
-### Variance Partitioning 
+## Variance Partitioning 
 Compute variance paritioning 
 ```{r}
 head(model$X)

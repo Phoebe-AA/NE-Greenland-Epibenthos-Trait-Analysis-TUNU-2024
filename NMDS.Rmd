@@ -24,13 +24,13 @@ knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.show = "hide", resul
 knitr::write_bib(c("base", "bookdown", "rmarkdown"), "packages.bib")
 ```
 
-### Libraries and data
+## Libraries and data
 
 To begin, we need to download our data for the analysis as well as
 install any packages or libraries from R.
 Note that for the first part (calculating the indices) it is the same code for both the abundance and biomass data sets. Therefore, you will need to run the code once for the abundance data set, and then run it again for biomass data set. You will see the lines of code that have a hash tag (#) that will need to be switched for abundance or biomass analyses.
 
-#### Libraries
+### Libraries
 
 ```{r}
 # load libraries 
@@ -39,7 +39,7 @@ library(RColorBrewer)
 library(pairwiseAdonis)
 ```
 
-#### Data
+### Data
 
 ```{r}
 # load taxa data 
@@ -59,7 +59,7 @@ CWM <- read.csv(file = file.path('indices//CWM_A.csv'),
 #CWM <- read.csv(file = file.path('indices//CWM_B.csv'))
 ```
 
-### NMDS Analysis
+## NMDS Analysis
 Using the 'vegan' package, NMDS analysis is run on taxa data. 
 Followed by plotting and saving scores as a dataframe. 
 ```{r}
@@ -91,7 +91,7 @@ nmds.traits.scores <- as.data.frame(scores(nmds_traits)[1])
 nmds.traits.scores
 ```
 
-### Plotting NMDS 
+## Plotting NMDS 
 A) Taxa Abundance data 
 ```{r}
 par(mfrow=c(1,2))
@@ -122,8 +122,8 @@ ordispider(nmds_traits, groups=S$Habitat,
            col=brewer.pal(n = 4, name = "BrBG"), label=TRUE)
 points(nmds_traits, pch=21, col="black", bg=brewer.pal(n = 4, name = "BrBG")[S$Habitat], cex=0.7)
 ```
-### Statistical testing 
-#### Distance matrix
+## Statistical testing 
+### Distance matrix
 First to create a distance matrix using Curtis-Bray method for species and the gower methods for traits. The vegdist function is found in the 'vegan' package. 
 ```{r}
 # Distance matrices 
@@ -131,7 +131,7 @@ distances.Species<- vegdist(Species, method = "bray")
 distances.CWM<- vegdist(CWM, method = "gower")
 ```
 
-#### Plot (dis)similarity 
+### Plot (dis)similarity 
 NB: This is only an exploratory plot and not used in the analysis, although quite insightful to see the spread of data. The last of the three plots shows taxa dissimilarity to be greater than trait dissimilarity between taxa. 
 ```{r}
 plot(distances.Species, #col = Env$Habitat, 
@@ -144,7 +144,7 @@ points(distances.CWM, #col = Env$Habitat,
      pch = 19, col = "grey")
 ```
 
-#### Test for homogeniety of variances 
+### Test for homogeniety of variances 
 ```{r}
 #Test for normality 
 normal.test1 <- anova(betadisper(distances.Species, Env$Habitat)) 
@@ -166,7 +166,7 @@ test.traits.1
 # There is a sig difference between groups for both species and traits. 
 ```
 
-#### ADONIS Pairwaise comparisons
+### ADONIS Pairwaise comparisons
 Pairwise comparisons for all pairs of levels of a factor by using for Permutational MANOVA.
 Note that the syntax here represents: 
 "A" for abundance (so you may want to change when running the biomass dataset)
