@@ -751,97 +751,238 @@ post-processing</h1>
 <h4 class="hasAnchor">Load libraries<a href="#load-libraries" class="anchor-section" aria-label="Anchor link to header"></a></h4>
 <pre class="r"><code>library(Hmsc)
 library(colorspace)
-library(vioplot)</code></pre>
+library(vioplot)
+library(parallel)
+library(corrplot)
+library(dplyr)
+library(RColorBrewer)
+library(ggplot2)
+library(viridis)
+library(tidyr)</code></pre>
 </div>
-<div id="evaluate-converge" class="section level4 hasAnchor">
-<h4 class="hasAnchor">Evaluate converge<a href="#evaluate-converge" class="anchor-section" aria-label="Anchor link to header"></a></h4>
-<p>include in samples_list and thin_list only those models that you have
+<div id="load-model-and-set-new-parameters" class="section level4 hasAnchor">
+<h4 class="hasAnchor">Load model and set new parameters<a href="#load-model-and-set-new-parameters" class="anchor-section" aria-label="Anchor link to header"></a></h4>
+<p>include in samples_list and thin_list only those model that you have
 actually fitted</p>
+<pre class="r"><code>load(&quot;models/models_thin_1000_samples_250_chains_4.Rdata&quot;) #model, modelnames
+models
+modelnames
+model &lt;- models</code></pre>
 <pre class="r"><code>samples_list = 250#c(5, 250,250,250)
 thin_list = c(1000)#c(1,1,10,100)
 nst = length(thin_list)
 nChains = 4</code></pre>
-<p>Checking BETA parameter diagnostics</p>
-<pre class="r"><code>#models
-ma = NULL
-na = NULL
-# NOTE:  Couldnt get this to work so manually brought in the models and see rest of script below. # 
-for (Lst in 1:nst) {
-  thin = thin_list[Lst]
-  samples = samples_list[Lst]
-  
-  
-  filename = paste(&quot;models/models_thin_&quot;, as.character(thin),
-                   #paste(&quot;models/models_thin_&quot;, as.character(thin),
-                   &quot;_samples_&quot;, as.character(samples),
-                   &quot;_chains_&quot;,as.character(nChains),&quot;.Rdata&quot;,sep = &quot;&quot;)
-  load(filename)
-  nm = length(models)
-  for(j in 1:nm){
-    mpost = convertToCodaObject(models[[j]], spNamesNumbers = c(T,F), covNamesNumbers = c(T,F))
-    psrf.beta = gelman.diag(mpost$Beta,multivariate=FALSE)$psrf
-    tmp = summary(psrf.beta)
-    if(is.null(ma)){
-      ma=psrf.beta[,1]
-      na = paste0(as.character(thin),&quot;,&quot;,as.character(samples))
-    } else {
-      ma = cbind(ma,psrf.beta[,1])
-      if(j==1){
-        na = c(na,paste0(as.character(thin),&quot;,&quot;,as.character(samples)))
-      } else {
-        na = c(na,&quot;&quot;)
-      }
-    }
-  }
-}</code></pre>
+</div>
+<div id="evaluate-converge" class="section level4 hasAnchor">
+<h4 class="hasAnchor">Evaluate converge<a href="#evaluate-converge" class="anchor-section" aria-label="Anchor link to header"></a></h4>
+<div id="checking-beta-parameter-diagnostics" class="section level5 hasAnchor">
+<h5 class="hasAnchor">Checking BETA parameter diagnostics<a href="#checking-beta-parameter-diagnostics" class="anchor-section" aria-label="Anchor link to header"></a></h5>
+<pre class="r"><code>mpost = convertToCodaObject(model[[1]])
+postBeta = getPostEstimate(model[[1]], parName = &quot;Beta&quot;) 
+ess.beta = effectiveSize(mpost$Beta)
+mean(ess.beta)
+psrf.beta = gelman.diag(mpost$Beta, multivariate = FALSE, autoburnin = FALSE)$psrf
+hist(ess.beta)</code></pre>
+<pre class="r"><code>hist(psrf.beta, xlab=&quot;Potential scale reduction factor (beta)&quot;)</code></pre>
+<pre class="r"><code>mean(gelman.diag(mpost$Beta, multivariate = FALSE, autoburnin = FALSE)$psrf)
+sd(gelman.diag(mpost$Beta, multivariate = FALSE, autoburnin = FALSE)$psrf)
+max(gelman.diag(mpost$Beta, multivariate = FALSE, autoburnin = FALSE)$psrf)</code></pre>
+<p>Plot the diagnostics</p>
 <pre class="r"><code>par(mfrow=c(2,1))
-vioplot(ma,col=rainbow_hcl(nm),names=na,ylim=c(0,max(ma)),main=&quot;psrf(beta)&quot;)
-vioplot(ma,col=rainbow_hcl(nm),names=na,ylim=c(0.98,1.04),main=&quot;psrf(beta)&quot;)</code></pre>
-<p>Check diagnostics</p>
-<pre class="r"><code>summary(ma)
-models</code></pre>
-<p>Checking GAMMA parameter diagnostics</p>
-<pre class="r"><code>#models
-ma = NULL
-na = NULL
-# NOTE:  Couldnt get this to work so manually brought in the models and see rest of script below. # 
-for (Lst in 1:nst) {
-  thin = thin_list[Lst]
-  samples = samples_list[Lst]
+vioplot(psrf.beta,col=rainbow_hcl(1), ylim=c(0,max(psrf.beta)),
+        main=&quot;psrf(beta)&quot;)
+vioplot(psrf.beta,col=rainbow_hcl(1),ylim=c(0.98,1.04),
+        main=&quot;psrf(beta)&quot;)</code></pre>
+<p>Check summaries</p>
+<pre class="r"><code>summary(psrf.beta)
+model</code></pre>
+</div>
+<div id="checking-gamma-parameter-diagnostics" class="section level5 hasAnchor">
+<h5 class="hasAnchor">Checking GAMMA parameter diagnostics<a href="#checking-gamma-parameter-diagnostics" class="anchor-section" aria-label="Anchor link to header"></a></h5>
+<pre class="r"><code>ess.gamma = effectiveSize(mpost$Gamma)
+mean(ess.gamma)
+psrf.gamma = gelman.diag(mpost$Gamma, multivariate = FALSE, autoburnin = FALSE)$psrf
+hist(ess.gamma)</code></pre>
+<pre class="r"><code>hist(psrf.gamma, xlab=&quot;Potential scale reduction factor (gamma)&quot;)</code></pre>
+<pre class="r"><code>mean(gelman.diag(mpost$Gamma, multivariate = FALSE, autoburnin = FALSE)$psrf)
+sd(gelman.diag(mpost$Gamma, multivariate = FALSE, autoburnin = FALSE)$psrf)
+max(gelman.diag(mpost$Gamma, multivariate = FALSE, autoburnin = FALSE)$psrf)</code></pre>
+<p>Plot the diagnostics</p>
+<pre class="r"><code>vioplot(psrf.gamma,col=rainbow_hcl(1),ylim=c(0,max(psrf.gamma)),
+        main=&quot;psrf(gamma)&quot;)</code></pre>
+<pre class="r"><code>vioplot(psrf.gamma,col=rainbow_hcl(1),ylim=c(0.98,1.04),
+        main=&quot;psrf(gamma)&quot;)</code></pre>
+<p>Check summaries</p>
+<pre class="r"><code>summary(psrf.gamma)
+model</code></pre>
+</div>
+<div id="checking-rho-parameter-diagnostics" class="section level5 hasAnchor">
+<h5 class="hasAnchor">Checking RHO parameter diagnostics<a href="#checking-rho-parameter-diagnostics" class="anchor-section" aria-label="Anchor link to header"></a></h5>
+<pre class="r"><code>summary(mpost$Rho) # posterior distribution of rho reveals strong evidence for phylogenetic signal p = 1
+effectiveSize(mpost$Rho)
+gelman.diag(mpost$Rho, multivariate = FALSE, autoburnin = FALSE)$psrf
+max(gelman.diag(mpost$Rho, multivariate = FALSE, autoburnin = FALSE)$psrf)
+sd(gelman.diag(mpost$Rho, multivariate = FALSE, autoburnin = FALSE)$psrf)</code></pre>
+</div>
+</div>
+<div id="beta-plot" class="section level4 hasAnchor">
+<h4 class="hasAnchor">Beta Plot<a href="#beta-plot" class="anchor-section" aria-label="Anchor link to header"></a></h4>
+<pre class="r"><code>for(j in 1){
+  m = model[[j]]
+  postBeta = getPostEstimate(m, parName=&quot;Beta&quot;)
+  show.sp.names = (is.null(m$phyloTree) &amp;&amp; m$ns&lt;=20) 
+  plotBeta(m, post=postBeta, supportLevel = 0.90,param=&quot;Sign&quot;,
+           plotTree = !is.null(m$phyloTree),
+           covNamesNumbers = c(TRUE,FALSE),
+           spNamesNumbers=c(show.sp.names,FALSE),
+           cex = c(1, 1, 1), mar=c(8,0,1,0), marTree = c(8,5,1,0), 
+           #cex=c(0.6,0.6,0.8),  
+           split = 0.4, 
+           colors = colorRampPalette(c(&quot;darkslategray3&quot;,&quot;white&quot;, &quot;darkslategray&quot;)))
+  mymain = paste0(&quot;BetaPlot, &quot;,modelnames[[j]])
+  if(!is.null(m$phyloTree)){
+    mpost = convertToCodaObject(m)
+    rhovals = unlist(poolMcmcChains(mpost$Rho))
+    mymain = paste0(mymain,&quot;, E[rho] = &quot;,round(mean(rhovals),2),&quot;, Pr[rho&gt;0] = &quot;,round(mean(rhovals&gt;0),2))
+  }
+  title(main=mymain, line=2.5, cex.main=0.8)
   
-  
-  filename = paste(&quot;models/models_thin_&quot;, as.character(thin),
-                   #paste(&quot;models/models_thin_&quot;, as.character(thin),
-                   &quot;_samples_&quot;, as.character(samples),
-                   &quot;_chains_&quot;,as.character(nChains),&quot;.Rdata&quot;,sep = &quot;&quot;)
-  load(filename)
-  nm = length(models)
-  for(j in 1:nm){
-    mpost = convertToCodaObject(models[[j]], spNamesNumbers = c(T,F), covNamesNumbers = c(T,F))
-    psrf.gamma = gelman.diag(mpost$Gamma,multivariate=FALSE)$psrf
-    tmp = summary(psrf.gamma)
-    if(is.null(ma)){
-      ma=psrf.gamma[,1]
-      na = paste0(as.character(thin),&quot;,&quot;,as.character(samples))
-    } else {
-      ma = cbind(ma,psrf.gamma[,1])
-      if(j==1){
-        na = c(na,paste0(as.character(thin),&quot;,&quot;,as.character(samples)))
-      } else {
-        na = c(na,&quot;&quot;)
-      }
-    }
+  me = as.data.frame(t(postBeta$mean))
+  me = cbind(m$spNames,me)
+  colnames(me) = c(&quot;Species&quot;,m$covNames)
+  po = as.data.frame(t(postBeta$support))
+  po = cbind(m$spNames,po)
+  colnames(po) = c(&quot;Species&quot;,m$covNames)
+  ne = as.data.frame(t(postBeta$supportNeg))
+  ne = cbind(m$spNames,ne)
+  colnames(ne) = c(&quot;Species&quot;,m$covNames)
+  vals = list(&quot;Posterior mean&quot;=me,&quot;Pr(x&gt;0)&quot;=po,&quot;Pr(x&lt;0)&quot;=ne)
+}</code></pre>
+</div>
+<div id="gamma-plot" class="section level4 hasAnchor">
+<h4 class="hasAnchor">Gamma Plot<a href="#gamma-plot" class="anchor-section" aria-label="Anchor link to header"></a></h4>
+<pre class="r"><code>for(j in 1){
+  if(m$nt&gt;1){
+    m = model[[j]]
+    postGamma = getPostEstimate(m, parName=&quot;Gamma&quot;)
+    plotGamma(m, post=postGamma, supportLevel = 0.90, param=&quot;Sign&quot;,
+              covNamesNumbers = c(TRUE,FALSE),
+              trNamesNumbers=c(TRUE,FALSE),
+              #cex=c(0.6,0.6,0.8), 
+             mar=c(8,10,1,0),
+              cex = c(1, 1, 1), colors = colorRampPalette(c(&quot;darkslategray3&quot;,&quot;white&quot;, &quot;darkslategray&quot;)))
+    title(main=paste0(&quot;GammaPlot &quot;,modelnames[[j]]), line=2.5,cex.main=0.8)
   }
 }</code></pre>
-<p>Plotting violinplot code</p>
-<pre class="r"><code>vioplot(ma,col=rainbow_hcl(nm),names=na,ylim=c(0,max(ma)),main=&quot;psrf(gamma)&quot;)</code></pre>
-<pre class="r"><code>vioplot(ma,col=rainbow_hcl(nm),names=na,ylim=c(0.98,1.04),main=&quot;psrf(gamma)&quot;)</code></pre>
-<p>Summary statistics</p>
-<pre class="r"><code>summary(ma)
-models</code></pre>
+</div>
+<div id="evaluate-model-fit" class="section level4 hasAnchor">
+<h4 class="hasAnchor">Evaluate Model Fit<a href="#evaluate-model-fit" class="anchor-section" aria-label="Anchor link to header"></a></h4>
+<pre class="r"><code>preds &lt;- computePredictedValues(model[[1]])
+MF &lt;- evaluateModelFit(hM=model[[1]], predY=preds)
+MF # RMSE and R2 for normal distribution 
+
+P &lt;- colMeans(model[[1]]$Y &gt; 0)
+
+hist(MF$TjurR2, xlim = c(0,1), main=paste0(&quot;Mean = &quot;, round(mean(MF$TjurR2),2)))</code></pre>
+<pre class="r"><code>mean(MF$TjurR2, na.rm = TRUE)
+sd(MF$TjurR2, na.rm = TRUE)
+mean(MF$RMSE, na.rm = TRUE)
+mean(MF$AUC, na.rm = TRUE)
+
+#Se HMSC_model_PA.R for prevelance. 
+par(mfrow=c(1,2))
+plot(MF$TjurR2~P, xlab = &quot;Prevalance&quot;, ylab = &quot;TjurR2&quot;,
+     bg=&quot;pink&quot;, pch=21, main = &quot;A&quot;) # Looks good. Greater prevelance = higher Exp. 
+p_jitter &lt;- jitter(P)                     # Apply jitter R function
+plot(MF$AUC~p_jitter,  xlab = &quot;Prevalance&quot;, ylab = &quot;AUC&quot;, 
+     bg=&quot;pink&quot;, pch=21, main = &quot;B&quot;)</code></pre>
+<div id="variance-partitioning" class="section level5 hasAnchor">
+<h5 class="hasAnchor">Variance Partitioning<a href="#variance-partitioning" class="anchor-section" aria-label="Anchor link to header"></a></h5>
+<pre class="r"><code>head(model$X)
+par(mfrow=c(1,1))
+VP &lt;- computeVariancePartitioning(model[[1]])
+(VP$R2T$Beta) #The proportions of variance in species niches explained by traits included in the model. 
+#A major part of the variation among species niches related to their responses to habitat quality is explained by the traits. 
+
+(VP$R2T$Y) #  the proportion of variance that the included traits explain out of species abundances
+
+VP
+v.part &lt;- as.data.frame(VP$vals)
+v.part &lt;- as.data.frame(t(v.part))
+v.part$Taxa &lt;- rownames(v.part)
+v.part$TjurR2 &lt;- MF$TjurR2
+v.part$RMSE &lt;- MF$RMSE
+(v.part)</code></pre>
+<p>Plot Variance partitioning</p>
+<pre class="r"><code>#1. Make explained partition data frame.
+Sp.var.part &lt;- data.frame((v.part$TjurR2/rowSums(v.part[1:8]))*v.part[1:8])
+rowSums((v.part$TjurR2/rowSums(v.part[1:8]))*v.part[1:8])
+rowSums(Sp.var.part)
+Sp.var.part$TjurR2 &lt;- v.part$TjurR2
+
+#2. Looks okay. Now order the data frame to most explained: 
+dim(Sp.var.part)
+Sp.var.part &lt;- Sp.var.part[order(Sp.var.part$TjurR2),]
+Sp.var.part$Taxa &lt;- 120:1 #30 or 46 
+Sp.var.part$Taxa_Names &lt;- rownames(Sp.var.part)
+Sp.var.part
+
+#3. Change from wide to long data
+Sp.var.part2&lt;- gather(Sp.var.part, Env, value, Depth, B.PSU, Oxygen,  
+                      B.Temp,
+                       Turbidity, Flourescence, 
+                       `Random..habitat`, `Random..sample`,factor_key=TRUE)
+
+#4. Set colour scheme 
+brewer.pal(8, &quot;BrBG&quot;)
+
+col &lt;- c(&quot;black&quot;, &quot;darkslategray&quot;, &quot;darkslategray4&quot;, &quot;#5AB4AC&quot;, &quot;darkslategray3&quot;, 
+         &quot;lightcyan2&quot;, &quot;#DFC27D&quot;,&quot;#F6E8C3&quot;)#, &quot;#BF812D&quot;)#&quot;sandybrown&quot;)
+
+
+
+# Stacked :
+Sp.var.part2$Taxa_Names &lt;- sub(&quot;_&quot;, &quot; &quot;, Sp.var.part2$Taxa_Names)
+Sp.var.part2$Taxa_Names &lt;- factor(Sp.var.part2$Taxa_Names, levels = unique(Sp.var.part2$Taxa_Names))
+Sp.var.part2
+
+Sp.var.part2_plot &lt;- ggplot(Sp.var.part2, aes(fill=forcats::fct_infreq(Env), y=value, x=reorder(Taxa_Names, desc(Taxa_Names)))) + 
+  geom_bar(stat=&quot;identity&quot;, position = position_stack(reverse=TRUE)) + 
+  ylim(0,1)+
+  guides(fill = guide_legend(reverse=TRUE, nrow=4,byrow=TRUE)) + 
+  scale_fill_manual(values = col, 
+                    labels = 
+                    #c(&quot;Depth&quot;, &quot;Temperature&quot;, &quot;Salinity&quot;, &quot;Oxygen&quot;,
+                    #  &quot;Turbidity&quot;, &quot;Fluorescence&quot;, &quot;Random: Station&quot;, &quot;Random: Habitat&quot;))+
+                   c(&quot;Depth (mean = 25.6)&quot;,&quot;Temp (mean = 12.1)&quot;, &quot;Salinity (mean = 20.9)&quot;,&quot;Oxygen (mean = 17.9)&quot;, 
+                        &quot;Turbidity (mean = 11.4)&quot;,&quot;Flourescence (mean = 10.5)&quot;,
+                     &quot;Random: station (mean = 1.1)&quot;,&quot;Random: Habitat (mean = 0.4)&quot;)) +
+  xlab (&quot;Taxa&quot;) + 
+  ylab(expression(paste(&quot;Taxa niche explained variance partitioned ( &quot;,italic(&quot;Tjur R&quot;),{}^2,italic(&quot;)&quot;))))+
+  theme(legend.position=c(0.75,0.8), legend.title = element_blank(),#(&quot;Mean explained variance (%)&quot;),
+        legend.text = element_text(size = 16), legend.background = element_rect(fill=&quot;white&quot;),
+        #panel.grid.major = element_line(colour = &quot;gray90&quot;, linetype = 2),
+        #panel.grid.minor = element_line(colour = &quot;gray85&quot;, linetype = 2),
+        panel.background = element_rect(fill = &quot;white&quot;),
+        #legend.box = &quot;horizontal&quot;, 
+        axis.text=element_text(size = 16),
+        axis.title=element_text(size=18),#face=&quot;bold&quot;),
+        plot.title = element_text(face= 2, size=20), 
+        legend.text.align = 1,
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 12))  
+
+Sp.var.part2_plot</code></pre>
+<pre class="r"><code>#ggsave(&quot;Variance_part.png&quot;,
+#       plot = Sp.var.part2_plot,
+#       width = 17,
+#       height = 10,
+#       units = &quot;in&quot;,
+#       dpi = 400,
+#       limitsize = TRUE)</code></pre>
+</div>
 </div>
 
-<div id="rmd-source-code">LS0tDQp0aXRsZTogIk5FIEdyZWVubGFuZCBUcmFpdCBBbmFseXNpczogSE1TQyBwb3N0LXByb2Nlc3NpbmciDQphdXRob3I6ICJQaG9lYmUgQXJtaXRhZ2UiDQpkYXRlOiAnMjAyMy1KdW5lJw0Kb3V0cHV0Og0KIGh0bWxfZG9jdW1lbnQ6DQogIHRvYzogVFJVRQ0KICBhbmNob3Jfc2VjdGlvbnM6IFRSVUUNCiAgY29kZV9kb3dubG9hZDogVFJVRSANCiAgY29kZV9mb2xkaW5nOiAiaGlkZSINCiAgZmlnX2NhcHRpb246IFRSVUUNCiAgdGhlbWU6DQogICAgYm9vdHN3YXRjaDogImZsYXRseSINCiAgYmlibGlvZ3JhcGh5OiByZWZlcmVuY2VzLmJpYg0KICBsaW5rLWNpdGF0aW9uczogVFJVRQ0KZWRpdG9yX29wdGlvbnM6IA0KICBtYXJrZG93bjogDQogICAgd3JhcDogNzINCi0tLQ0KDQpgYGB7ciBpbmNsdWRlPUZBTFNFfQ0Ka25pdHI6Om9wdHNfY2h1bmskc2V0KG1lc3NhZ2UgPSBGQUxTRSwgd2FybmluZyA9IEZBTFNFLCBmaWcuc2hvdyA9ICJoaWRlIiwgcmVzdWx0cyA9ICJoaWRlIikNCiMgdG8gY2l0ZSBzcGVjaWZpYyBwYWNrYWdlcw0Ka25pdHI6OndyaXRlX2JpYihjKCJiYXNlIiwgImJvb2tkb3duIiwgInJtYXJrZG93biIpLCAicGFja2FnZXMuYmliIikNCmBgYA0KDQojIyMjIExvYWQgbGlicmFyaWVzDQpgYGB7cn0NCmxpYnJhcnkoSG1zYykNCmxpYnJhcnkoY29sb3JzcGFjZSkNCmxpYnJhcnkodmlvcGxvdCkNCmBgYA0KDQojIyMjIEV2YWx1YXRlIGNvbnZlcmdlIA0KaW5jbHVkZSBpbiBzYW1wbGVzX2xpc3QgYW5kIHRoaW5fbGlzdCBvbmx5IHRob3NlIG1vZGVscyB0aGF0IHlvdSBoYXZlIGFjdHVhbGx5IGZpdHRlZA0KYGBge3J9DQpzYW1wbGVzX2xpc3QgPSAyNTAjYyg1LCAyNTAsMjUwLDI1MCkNCnRoaW5fbGlzdCA9IGMoMTAwMCkjYygxLDEsMTAsMTAwKQ0KbnN0ID0gbGVuZ3RoKHRoaW5fbGlzdCkNCm5DaGFpbnMgPSA0DQpgYGANCg0KQ2hlY2tpbmcgQkVUQSBwYXJhbWV0ZXIgZGlhZ25vc3RpY3MgDQpgYGB7cn0NCiNtb2RlbHMNCm1hID0gTlVMTA0KbmEgPSBOVUxMDQojIE5PVEU6ICBDb3VsZG50IGdldCB0aGlzIHRvIHdvcmsgc28gbWFudWFsbHkgYnJvdWdodCBpbiB0aGUgbW9kZWxzIGFuZCBzZWUgcmVzdCBvZiBzY3JpcHQgYmVsb3cuICMgDQpmb3IgKExzdCBpbiAxOm5zdCkgew0KICB0aGluID0gdGhpbl9saXN0W0xzdF0NCiAgc2FtcGxlcyA9IHNhbXBsZXNfbGlzdFtMc3RdDQogIA0KICANCiAgZmlsZW5hbWUgPSBwYXN0ZSgibW9kZWxzL21vZGVsc190aGluXyIsIGFzLmNoYXJhY3Rlcih0aGluKSwNCiAgICAgICAgICAgICAgICAgICAjcGFzdGUoIm1vZGVscy9tb2RlbHNfdGhpbl8iLCBhcy5jaGFyYWN0ZXIodGhpbiksDQogICAgICAgICAgICAgICAgICAgIl9zYW1wbGVzXyIsIGFzLmNoYXJhY3RlcihzYW1wbGVzKSwNCiAgICAgICAgICAgICAgICAgICAiX2NoYWluc18iLGFzLmNoYXJhY3RlcihuQ2hhaW5zKSwiLlJkYXRhIixzZXAgPSAiIikNCiAgbG9hZChmaWxlbmFtZSkNCiAgbm0gPSBsZW5ndGgobW9kZWxzKQ0KICBmb3IoaiBpbiAxOm5tKXsNCiAgICBtcG9zdCA9IGNvbnZlcnRUb0NvZGFPYmplY3QobW9kZWxzW1tqXV0sIHNwTmFtZXNOdW1iZXJzID0gYyhULEYpLCBjb3ZOYW1lc051bWJlcnMgPSBjKFQsRikpDQogICAgcHNyZi5iZXRhID0gZ2VsbWFuLmRpYWcobXBvc3QkQmV0YSxtdWx0aXZhcmlhdGU9RkFMU0UpJHBzcmYNCiAgICB0bXAgPSBzdW1tYXJ5KHBzcmYuYmV0YSkNCiAgICBpZihpcy5udWxsKG1hKSl7DQogICAgICBtYT1wc3JmLmJldGFbLDFdDQogICAgICBuYSA9IHBhc3RlMChhcy5jaGFyYWN0ZXIodGhpbiksIiwiLGFzLmNoYXJhY3RlcihzYW1wbGVzKSkNCiAgICB9IGVsc2Ugew0KICAgICAgbWEgPSBjYmluZChtYSxwc3JmLmJldGFbLDFdKQ0KICAgICAgaWYoaj09MSl7DQogICAgICAgIG5hID0gYyhuYSxwYXN0ZTAoYXMuY2hhcmFjdGVyKHRoaW4pLCIsIixhcy5jaGFyYWN0ZXIoc2FtcGxlcykpKQ0KICAgICAgfSBlbHNlIHsNCiAgICAgICAgbmEgPSBjKG5hLCIiKQ0KICAgICAgfQ0KICAgIH0NCiAgfQ0KfQ0KYGBgDQoNCmBgYHtyfQ0KcGFyKG1mcm93PWMoMiwxKSkNCnZpb3Bsb3QobWEsY29sPXJhaW5ib3dfaGNsKG5tKSxuYW1lcz1uYSx5bGltPWMoMCxtYXgobWEpKSxtYWluPSJwc3JmKGJldGEpIikNCnZpb3Bsb3QobWEsY29sPXJhaW5ib3dfaGNsKG5tKSxuYW1lcz1uYSx5bGltPWMoMC45OCwxLjA0KSxtYWluPSJwc3JmKGJldGEpIikNCmBgYA0KQ2hlY2sgZGlhZ25vc3RpY3MgDQpgYGB7cn0NCnN1bW1hcnkobWEpDQptb2RlbHMNCmBgYA0KDQpDaGVja2luZyBHQU1NQSBwYXJhbWV0ZXIgZGlhZ25vc3RpY3MNCmBgYHtyfQ0KI21vZGVscw0KbWEgPSBOVUxMDQpuYSA9IE5VTEwNCiMgTk9URTogIENvdWxkbnQgZ2V0IHRoaXMgdG8gd29yayBzbyBtYW51YWxseSBicm91Z2h0IGluIHRoZSBtb2RlbHMgYW5kIHNlZSByZXN0IG9mIHNjcmlwdCBiZWxvdy4gIyANCmZvciAoTHN0IGluIDE6bnN0KSB7DQogIHRoaW4gPSB0aGluX2xpc3RbTHN0XQ0KICBzYW1wbGVzID0gc2FtcGxlc19saXN0W0xzdF0NCiAgDQogIA0KICBmaWxlbmFtZSA9IHBhc3RlKCJtb2RlbHMvbW9kZWxzX3RoaW5fIiwgYXMuY2hhcmFjdGVyKHRoaW4pLA0KICAgICAgICAgICAgICAgICAgICNwYXN0ZSgibW9kZWxzL21vZGVsc190aGluXyIsIGFzLmNoYXJhY3Rlcih0aGluKSwNCiAgICAgICAgICAgICAgICAgICAiX3NhbXBsZXNfIiwgYXMuY2hhcmFjdGVyKHNhbXBsZXMpLA0KICAgICAgICAgICAgICAgICAgICJfY2hhaW5zXyIsYXMuY2hhcmFjdGVyKG5DaGFpbnMpLCIuUmRhdGEiLHNlcCA9ICIiKQ0KICBsb2FkKGZpbGVuYW1lKQ0KICBubSA9IGxlbmd0aChtb2RlbHMpDQogIGZvcihqIGluIDE6bm0pew0KICAgIG1wb3N0ID0gY29udmVydFRvQ29kYU9iamVjdChtb2RlbHNbW2pdXSwgc3BOYW1lc051bWJlcnMgPSBjKFQsRiksIGNvdk5hbWVzTnVtYmVycyA9IGMoVCxGKSkNCiAgICBwc3JmLmdhbW1hID0gZ2VsbWFuLmRpYWcobXBvc3QkR2FtbWEsbXVsdGl2YXJpYXRlPUZBTFNFKSRwc3JmDQogICAgdG1wID0gc3VtbWFyeShwc3JmLmdhbW1hKQ0KICAgIGlmKGlzLm51bGwobWEpKXsNCiAgICAgIG1hPXBzcmYuZ2FtbWFbLDFdDQogICAgICBuYSA9IHBhc3RlMChhcy5jaGFyYWN0ZXIodGhpbiksIiwiLGFzLmNoYXJhY3RlcihzYW1wbGVzKSkNCiAgICB9IGVsc2Ugew0KICAgICAgbWEgPSBjYmluZChtYSxwc3JmLmdhbW1hWywxXSkNCiAgICAgIGlmKGo9PTEpew0KICAgICAgICBuYSA9IGMobmEscGFzdGUwKGFzLmNoYXJhY3Rlcih0aGluKSwiLCIsYXMuY2hhcmFjdGVyKHNhbXBsZXMpKSkNCiAgICAgIH0gZWxzZSB7DQogICAgICAgIG5hID0gYyhuYSwiIikNCiAgICAgIH0NCiAgICB9DQogIH0NCn0NCg0KYGBgDQpQbG90dGluZyB2aW9saW5wbG90IGNvZGUgDQpgYGB7cn0NCnZpb3Bsb3QobWEsY29sPXJhaW5ib3dfaGNsKG5tKSxuYW1lcz1uYSx5bGltPWMoMCxtYXgobWEpKSxtYWluPSJwc3JmKGdhbW1hKSIpDQp2aW9wbG90KG1hLGNvbD1yYWluYm93X2hjbChubSksbmFtZXM9bmEseWxpbT1jKDAuOTgsMS4wNCksbWFpbj0icHNyZihnYW1tYSkiKQ0KYGBgDQoNClN1bW1hcnkgc3RhdGlzdGljcyANCmBgYHtyfQ0Kc3VtbWFyeShtYSkNCm1vZGVscw0KYGBgDQoNCg==</div>
+<div id="rmd-source-code">LS0tDQp0aXRsZTogIk5FIEdyZWVubGFuZCBUcmFpdCBBbmFseXNpczogSE1TQyBwb3N0LXByb2Nlc3NpbmciDQphdXRob3I6ICJQaG9lYmUgQXJtaXRhZ2UiDQpkYXRlOiAnMjAyMy1KdW5lJw0Kb3V0cHV0Og0KIGh0bWxfZG9jdW1lbnQ6DQogIHRvYzogVFJVRQ0KICBhbmNob3Jfc2VjdGlvbnM6IFRSVUUNCiAgY29kZV9kb3dubG9hZDogVFJVRSANCiAgY29kZV9mb2xkaW5nOiAiaGlkZSINCiAgZmlnX2NhcHRpb246IFRSVUUNCiAgdGhlbWU6DQogICAgYm9vdHN3YXRjaDogImZsYXRseSINCiAgYmlibGlvZ3JhcGh5OiByZWZlcmVuY2VzLmJpYg0KICBsaW5rLWNpdGF0aW9uczogVFJVRQ0KZWRpdG9yX29wdGlvbnM6IA0KICBtYXJrZG93bjogDQogICAgd3JhcDogNzINCi0tLQ0KDQpgYGB7ciBpbmNsdWRlPUZBTFNFfQ0Ka25pdHI6Om9wdHNfY2h1bmskc2V0KG1lc3NhZ2UgPSBGQUxTRSwgd2FybmluZyA9IEZBTFNFLCBmaWcuc2hvdyA9ICJoaWRlIiwgcmVzdWx0cyA9ICJoaWRlIikNCiMgdG8gY2l0ZSBzcGVjaWZpYyBwYWNrYWdlcw0Ka25pdHI6OndyaXRlX2JpYihjKCJiYXNlIiwgImJvb2tkb3duIiwgInJtYXJrZG93biIpLCAicGFja2FnZXMuYmliIikNCmBgYA0KDQojIyMjIExvYWQgbGlicmFyaWVzDQpgYGB7cn0NCmxpYnJhcnkoSG1zYykNCmxpYnJhcnkoY29sb3JzcGFjZSkNCmxpYnJhcnkodmlvcGxvdCkNCmxpYnJhcnkocGFyYWxsZWwpDQpsaWJyYXJ5KGNvcnJwbG90KQ0KbGlicmFyeShkcGx5cikNCmxpYnJhcnkoUkNvbG9yQnJld2VyKQ0KbGlicmFyeShnZ3Bsb3QyKQ0KbGlicmFyeSh2aXJpZGlzKQ0KbGlicmFyeSh0aWR5cikNCmBgYA0KIyMjIyBMb2FkIG1vZGVsIGFuZCBzZXQgbmV3IHBhcmFtZXRlcnMNCmluY2x1ZGUgaW4gc2FtcGxlc19saXN0IGFuZCB0aGluX2xpc3Qgb25seSB0aG9zZSBtb2RlbCB0aGF0IHlvdSBoYXZlIGFjdHVhbGx5IGZpdHRlZA0KYGBge3J9DQpsb2FkKCJtb2RlbHMvbW9kZWxzX3RoaW5fMTAwMF9zYW1wbGVzXzI1MF9jaGFpbnNfNC5SZGF0YSIpICNtb2RlbCwgbW9kZWxuYW1lcw0KbW9kZWxzDQptb2RlbG5hbWVzDQptb2RlbCA8LSBtb2RlbHMNCmBgYA0KDQpgYGB7cn0NCnNhbXBsZXNfbGlzdCA9IDI1MCNjKDUsIDI1MCwyNTAsMjUwKQ0KdGhpbl9saXN0ID0gYygxMDAwKSNjKDEsMSwxMCwxMDApDQpuc3QgPSBsZW5ndGgodGhpbl9saXN0KQ0KbkNoYWlucyA9IDQNCmBgYA0KDQoNCiMjIyMgRXZhbHVhdGUgY29udmVyZ2UgDQojIyMjIyBDaGVja2luZyBCRVRBIHBhcmFtZXRlciBkaWFnbm9zdGljcyANCmBgYHtyfQ0KbXBvc3QgPSBjb252ZXJ0VG9Db2RhT2JqZWN0KG1vZGVsW1sxXV0pDQpwb3N0QmV0YSA9IGdldFBvc3RFc3RpbWF0ZShtb2RlbFtbMV1dLCBwYXJOYW1lID0gIkJldGEiKSANCmVzcy5iZXRhID0gZWZmZWN0aXZlU2l6ZShtcG9zdCRCZXRhKQ0KbWVhbihlc3MuYmV0YSkNCnBzcmYuYmV0YSA9IGdlbG1hbi5kaWFnKG1wb3N0JEJldGEsIG11bHRpdmFyaWF0ZSA9IEZBTFNFLCBhdXRvYnVybmluID0gRkFMU0UpJHBzcmYNCmhpc3QoZXNzLmJldGEpDQpoaXN0KHBzcmYuYmV0YSwgeGxhYj0iUG90ZW50aWFsIHNjYWxlIHJlZHVjdGlvbiBmYWN0b3IgKGJldGEpIikNCm1lYW4oZ2VsbWFuLmRpYWcobXBvc3QkQmV0YSwgbXVsdGl2YXJpYXRlID0gRkFMU0UsIGF1dG9idXJuaW4gPSBGQUxTRSkkcHNyZikNCnNkKGdlbG1hbi5kaWFnKG1wb3N0JEJldGEsIG11bHRpdmFyaWF0ZSA9IEZBTFNFLCBhdXRvYnVybmluID0gRkFMU0UpJHBzcmYpDQptYXgoZ2VsbWFuLmRpYWcobXBvc3QkQmV0YSwgbXVsdGl2YXJpYXRlID0gRkFMU0UsIGF1dG9idXJuaW4gPSBGQUxTRSkkcHNyZikNCmBgYA0KUGxvdCB0aGUgZGlhZ25vc3RpY3MNCmBgYHtyfQ0KcGFyKG1mcm93PWMoMiwxKSkNCnZpb3Bsb3QocHNyZi5iZXRhLGNvbD1yYWluYm93X2hjbCgxKSwgeWxpbT1jKDAsbWF4KHBzcmYuYmV0YSkpLA0KICAgICAgICBtYWluPSJwc3JmKGJldGEpIikNCnZpb3Bsb3QocHNyZi5iZXRhLGNvbD1yYWluYm93X2hjbCgxKSx5bGltPWMoMC45OCwxLjA0KSwNCiAgICAgICAgbWFpbj0icHNyZihiZXRhKSIpDQpgYGANCkNoZWNrIHN1bW1hcmllcyANCmBgYHtyfQ0Kc3VtbWFyeShwc3JmLmJldGEpDQptb2RlbA0KYGBgDQojIyMjIyBDaGVja2luZyBHQU1NQSBwYXJhbWV0ZXIgZGlhZ25vc3RpY3MNCmBgYHtyfQ0KZXNzLmdhbW1hID0gZWZmZWN0aXZlU2l6ZShtcG9zdCRHYW1tYSkNCm1lYW4oZXNzLmdhbW1hKQ0KcHNyZi5nYW1tYSA9IGdlbG1hbi5kaWFnKG1wb3N0JEdhbW1hLCBtdWx0aXZhcmlhdGUgPSBGQUxTRSwgYXV0b2J1cm5pbiA9IEZBTFNFKSRwc3JmDQpoaXN0KGVzcy5nYW1tYSkNCmhpc3QocHNyZi5nYW1tYSwgeGxhYj0iUG90ZW50aWFsIHNjYWxlIHJlZHVjdGlvbiBmYWN0b3IgKGdhbW1hKSIpDQptZWFuKGdlbG1hbi5kaWFnKG1wb3N0JEdhbW1hLCBtdWx0aXZhcmlhdGUgPSBGQUxTRSwgYXV0b2J1cm5pbiA9IEZBTFNFKSRwc3JmKQ0Kc2QoZ2VsbWFuLmRpYWcobXBvc3QkR2FtbWEsIG11bHRpdmFyaWF0ZSA9IEZBTFNFLCBhdXRvYnVybmluID0gRkFMU0UpJHBzcmYpDQptYXgoZ2VsbWFuLmRpYWcobXBvc3QkR2FtbWEsIG11bHRpdmFyaWF0ZSA9IEZBTFNFLCBhdXRvYnVybmluID0gRkFMU0UpJHBzcmYpDQpgYGANClBsb3QgdGhlIGRpYWdub3N0aWNzDQpgYGB7cn0NCnZpb3Bsb3QocHNyZi5nYW1tYSxjb2w9cmFpbmJvd19oY2woMSkseWxpbT1jKDAsbWF4KHBzcmYuZ2FtbWEpKSwNCiAgICAgICAgbWFpbj0icHNyZihnYW1tYSkiKQ0KdmlvcGxvdChwc3JmLmdhbW1hLGNvbD1yYWluYm93X2hjbCgxKSx5bGltPWMoMC45OCwxLjA0KSwNCiAgICAgICAgbWFpbj0icHNyZihnYW1tYSkiKQ0KYGBgDQpDaGVjayBzdW1tYXJpZXMgIA0KYGBge3J9DQpzdW1tYXJ5KHBzcmYuZ2FtbWEpDQptb2RlbA0KYGBgDQoNCiMjIyMjIENoZWNraW5nIFJITyBwYXJhbWV0ZXIgZGlhZ25vc3RpY3MNCmBgYHtyfQ0Kc3VtbWFyeShtcG9zdCRSaG8pICMgcG9zdGVyaW9yIGRpc3RyaWJ1dGlvbiBvZiByaG8gcmV2ZWFscyBzdHJvbmcgZXZpZGVuY2UgZm9yIHBoeWxvZ2VuZXRpYyBzaWduYWwgcCA9IDENCmVmZmVjdGl2ZVNpemUobXBvc3QkUmhvKQ0KZ2VsbWFuLmRpYWcobXBvc3QkUmhvLCBtdWx0aXZhcmlhdGUgPSBGQUxTRSwgYXV0b2J1cm5pbiA9IEZBTFNFKSRwc3JmDQptYXgoZ2VsbWFuLmRpYWcobXBvc3QkUmhvLCBtdWx0aXZhcmlhdGUgPSBGQUxTRSwgYXV0b2J1cm5pbiA9IEZBTFNFKSRwc3JmKQ0Kc2QoZ2VsbWFuLmRpYWcobXBvc3QkUmhvLCBtdWx0aXZhcmlhdGUgPSBGQUxTRSwgYXV0b2J1cm5pbiA9IEZBTFNFKSRwc3JmKQ0KYGBgDQoNCiMjIyMgQmV0YSBQbG90IA0KYGBge3J9DQpmb3IoaiBpbiAxKXsNCiAgbSA9IG1vZGVsW1tqXV0NCiAgcG9zdEJldGEgPSBnZXRQb3N0RXN0aW1hdGUobSwgcGFyTmFtZT0iQmV0YSIpDQogIHNob3cuc3AubmFtZXMgPSAoaXMubnVsbChtJHBoeWxvVHJlZSkgJiYgbSRuczw9MjApIA0KICBwbG90QmV0YShtLCBwb3N0PXBvc3RCZXRhLCBzdXBwb3J0TGV2ZWwgPSAwLjkwLHBhcmFtPSJTaWduIiwNCiAgICAgICAgICAgcGxvdFRyZWUgPSAhaXMubnVsbChtJHBoeWxvVHJlZSksDQogICAgICAgICAgIGNvdk5hbWVzTnVtYmVycyA9IGMoVFJVRSxGQUxTRSksDQogICAgICAgICAgIHNwTmFtZXNOdW1iZXJzPWMoc2hvdy5zcC5uYW1lcyxGQUxTRSksDQogICAgICAgICAgIGNleCA9IGMoMSwgMSwgMSksIG1hcj1jKDgsMCwxLDApLCBtYXJUcmVlID0gYyg4LDUsMSwwKSwgDQogICAgICAgICAgICNjZXg9YygwLjYsMC42LDAuOCksICANCiAgICAgICAgICAgc3BsaXQgPSAwLjQsIA0KICAgICAgICAgICBjb2xvcnMgPSBjb2xvclJhbXBQYWxldHRlKGMoImRhcmtzbGF0ZWdyYXkzIiwid2hpdGUiLCAiZGFya3NsYXRlZ3JheSIpKSkNCiAgbXltYWluID0gcGFzdGUwKCJCZXRhUGxvdCwgIixtb2RlbG5hbWVzW1tqXV0pDQogIGlmKCFpcy5udWxsKG0kcGh5bG9UcmVlKSl7DQogICAgbXBvc3QgPSBjb252ZXJ0VG9Db2RhT2JqZWN0KG0pDQogICAgcmhvdmFscyA9IHVubGlzdChwb29sTWNtY0NoYWlucyhtcG9zdCRSaG8pKQ0KICAgIG15bWFpbiA9IHBhc3RlMChteW1haW4sIiwgRVtyaG9dID0gIixyb3VuZChtZWFuKHJob3ZhbHMpLDIpLCIsIFByW3Jobz4wXSA9ICIscm91bmQobWVhbihyaG92YWxzPjApLDIpKQ0KICB9DQogIHRpdGxlKG1haW49bXltYWluLCBsaW5lPTIuNSwgY2V4Lm1haW49MC44KQ0KICANCiAgbWUgPSBhcy5kYXRhLmZyYW1lKHQocG9zdEJldGEkbWVhbikpDQogIG1lID0gY2JpbmQobSRzcE5hbWVzLG1lKQ0KICBjb2xuYW1lcyhtZSkgPSBjKCJTcGVjaWVzIixtJGNvdk5hbWVzKQ0KICBwbyA9IGFzLmRhdGEuZnJhbWUodChwb3N0QmV0YSRzdXBwb3J0KSkNCiAgcG8gPSBjYmluZChtJHNwTmFtZXMscG8pDQogIGNvbG5hbWVzKHBvKSA9IGMoIlNwZWNpZXMiLG0kY292TmFtZXMpDQogIG5lID0gYXMuZGF0YS5mcmFtZSh0KHBvc3RCZXRhJHN1cHBvcnROZWcpKQ0KICBuZSA9IGNiaW5kKG0kc3BOYW1lcyxuZSkNCiAgY29sbmFtZXMobmUpID0gYygiU3BlY2llcyIsbSRjb3ZOYW1lcykNCiAgdmFscyA9IGxpc3QoIlBvc3RlcmlvciBtZWFuIj1tZSwiUHIoeD4wKSI9cG8sIlByKHg8MCkiPW5lKQ0KfQ0KDQpgYGANCg0KIyMjIyBHYW1tYSBQbG90IA0KYGBge3J9DQpmb3IoaiBpbiAxKXsNCiAgaWYobSRudD4xKXsNCiAgICBtID0gbW9kZWxbW2pdXQ0KICAgIHBvc3RHYW1tYSA9IGdldFBvc3RFc3RpbWF0ZShtLCBwYXJOYW1lPSJHYW1tYSIpDQogICAgcGxvdEdhbW1hKG0sIHBvc3Q9cG9zdEdhbW1hLCBzdXBwb3J0TGV2ZWwgPSAwLjkwLCBwYXJhbT0iU2lnbiIsDQogICAgICAgICAgICAgIGNvdk5hbWVzTnVtYmVycyA9IGMoVFJVRSxGQUxTRSksDQogICAgICAgICAgICAgIHRyTmFtZXNOdW1iZXJzPWMoVFJVRSxGQUxTRSksDQogICAgICAgICAgICAgICNjZXg9YygwLjYsMC42LDAuOCksIA0KICAgICAgICAgICAgIG1hcj1jKDgsMTAsMSwwKSwNCiAgICAgICAgICAgICAgY2V4ID0gYygxLCAxLCAxKSwgY29sb3JzID0gY29sb3JSYW1wUGFsZXR0ZShjKCJkYXJrc2xhdGVncmF5MyIsIndoaXRlIiwgImRhcmtzbGF0ZWdyYXkiKSkpDQogICAgdGl0bGUobWFpbj1wYXN0ZTAoIkdhbW1hUGxvdCAiLG1vZGVsbmFtZXNbW2pdXSksIGxpbmU9Mi41LGNleC5tYWluPTAuOCkNCiAgfQ0KfQ0KYGBgDQojIyMjIEV2YWx1YXRlIE1vZGVsIEZpdCANCmBgYHtyfQ0KcHJlZHMgPC0gY29tcHV0ZVByZWRpY3RlZFZhbHVlcyhtb2RlbFtbMV1dKQ0KTUYgPC0gZXZhbHVhdGVNb2RlbEZpdChoTT1tb2RlbFtbMV1dLCBwcmVkWT1wcmVkcykNCk1GICMgUk1TRSBhbmQgUjIgZm9yIG5vcm1hbCBkaXN0cmlidXRpb24gDQoNClAgPC0gY29sTWVhbnMobW9kZWxbWzFdXSRZID4gMCkNCg0KaGlzdChNRiRUanVyUjIsIHhsaW0gPSBjKDAsMSksIG1haW49cGFzdGUwKCJNZWFuID0gIiwgcm91bmQobWVhbihNRiRUanVyUjIpLDIpKSkNCm1lYW4oTUYkVGp1clIyLCBuYS5ybSA9IFRSVUUpDQpzZChNRiRUanVyUjIsIG5hLnJtID0gVFJVRSkNCm1lYW4oTUYkUk1TRSwgbmEucm0gPSBUUlVFKQ0KbWVhbihNRiRBVUMsIG5hLnJtID0gVFJVRSkNCg0KI1NlIEhNU0NfbW9kZWxfUEEuUiBmb3IgcHJldmVsYW5jZS4gDQpwYXIobWZyb3c9YygxLDIpKQ0KcGxvdChNRiRUanVyUjJ+UCwgeGxhYiA9ICJQcmV2YWxhbmNlIiwgeWxhYiA9ICJUanVyUjIiLA0KICAgICBiZz0icGluayIsIHBjaD0yMSwgbWFpbiA9ICJBIikgIyBMb29rcyBnb29kLiBHcmVhdGVyIHByZXZlbGFuY2UgPSBoaWdoZXIgRXhwLiANCnBfaml0dGVyIDwtIGppdHRlcihQKSAgICAgICAgICAgICAgICAgICAgICMgQXBwbHkgaml0dGVyIFIgZnVuY3Rpb24NCnBsb3QoTUYkQVVDfnBfaml0dGVyLCAgeGxhYiA9ICJQcmV2YWxhbmNlIiwgeWxhYiA9ICJBVUMiLCANCiAgICAgYmc9InBpbmsiLCBwY2g9MjEsIG1haW4gPSAiQiIpDQoNCmBgYA0KDQojIyMjIyBWYXJpYW5jZSBQYXJ0aXRpb25pbmcgDQpgYGB7cn0NCmhlYWQobW9kZWwkWCkNCnBhcihtZnJvdz1jKDEsMSkpDQpWUCA8LSBjb21wdXRlVmFyaWFuY2VQYXJ0aXRpb25pbmcobW9kZWxbWzFdXSkNCihWUCRSMlQkQmV0YSkgI1RoZSBwcm9wb3J0aW9ucyBvZiB2YXJpYW5jZSBpbiBzcGVjaWVzIG5pY2hlcyBleHBsYWluZWQgYnkgdHJhaXRzIGluY2x1ZGVkIGluIHRoZSBtb2RlbC4gDQojQSBtYWpvciBwYXJ0IG9mIHRoZSB2YXJpYXRpb24gYW1vbmcgc3BlY2llcyBuaWNoZXMgcmVsYXRlZCB0byB0aGVpciByZXNwb25zZXMgdG8gaGFiaXRhdCBxdWFsaXR5IGlzIGV4cGxhaW5lZCBieSB0aGUgdHJhaXRzLiANCg0KKFZQJFIyVCRZKSAjICB0aGUgcHJvcG9ydGlvbiBvZiB2YXJpYW5jZSB0aGF0IHRoZSBpbmNsdWRlZCB0cmFpdHMgZXhwbGFpbiBvdXQgb2Ygc3BlY2llcyBhYnVuZGFuY2VzDQoNClZQDQp2LnBhcnQgPC0gYXMuZGF0YS5mcmFtZShWUCR2YWxzKQ0Kdi5wYXJ0IDwtIGFzLmRhdGEuZnJhbWUodCh2LnBhcnQpKQ0Kdi5wYXJ0JFRheGEgPC0gcm93bmFtZXModi5wYXJ0KQ0Kdi5wYXJ0JFRqdXJSMiA8LSBNRiRUanVyUjINCnYucGFydCRSTVNFIDwtIE1GJFJNU0UNCih2LnBhcnQpDQpgYGANClBsb3QgVmFyaWFuY2UgcGFydGl0aW9uaW5nIA0KYGBge3J9DQojMS4gTWFrZSBleHBsYWluZWQgcGFydGl0aW9uIGRhdGEgZnJhbWUuDQpTcC52YXIucGFydCA8LSBkYXRhLmZyYW1lKCh2LnBhcnQkVGp1clIyL3Jvd1N1bXModi5wYXJ0WzE6OF0pKSp2LnBhcnRbMTo4XSkNCnJvd1N1bXMoKHYucGFydCRUanVyUjIvcm93U3Vtcyh2LnBhcnRbMTo4XSkpKnYucGFydFsxOjhdKQ0Kcm93U3VtcyhTcC52YXIucGFydCkNClNwLnZhci5wYXJ0JFRqdXJSMiA8LSB2LnBhcnQkVGp1clIyDQoNCiMyLiBMb29rcyBva2F5LiBOb3cgb3JkZXIgdGhlIGRhdGEgZnJhbWUgdG8gbW9zdCBleHBsYWluZWQ6IA0KZGltKFNwLnZhci5wYXJ0KQ0KU3AudmFyLnBhcnQgPC0gU3AudmFyLnBhcnRbb3JkZXIoU3AudmFyLnBhcnQkVGp1clIyKSxdDQpTcC52YXIucGFydCRUYXhhIDwtIDEyMDoxICMzMCBvciA0NiANClNwLnZhci5wYXJ0JFRheGFfTmFtZXMgPC0gcm93bmFtZXMoU3AudmFyLnBhcnQpDQpTcC52YXIucGFydA0KDQojMy4gQ2hhbmdlIGZyb20gd2lkZSB0byBsb25nIGRhdGENClNwLnZhci5wYXJ0MjwtIGdhdGhlcihTcC52YXIucGFydCwgRW52LCB2YWx1ZSwgRGVwdGgsIEIuUFNVLCBPeHlnZW4sICANCiAgICAgICAgICAgICAgICAgICAgICBCLlRlbXAsDQogICAgICAgICAgICAgICAgICAgICAgIFR1cmJpZGl0eSwgRmxvdXJlc2NlbmNlLCANCiAgICAgICAgICAgICAgICAgICAgICAgYFJhbmRvbS4uaGFiaXRhdGAsIGBSYW5kb20uLnNhbXBsZWAsZmFjdG9yX2tleT1UUlVFKQ0KDQojNC4gU2V0IGNvbG91ciBzY2hlbWUgDQpicmV3ZXIucGFsKDgsICJCckJHIikNCg0KY29sIDwtIGMoImJsYWNrIiwgImRhcmtzbGF0ZWdyYXkiLCAiZGFya3NsYXRlZ3JheTQiLCAiIzVBQjRBQyIsICJkYXJrc2xhdGVncmF5MyIsIA0KICAgICAgICAgImxpZ2h0Y3lhbjIiLCAiI0RGQzI3RCIsIiNGNkU4QzMiKSMsICIjQkY4MTJEIikjInNhbmR5YnJvd24iKQ0KDQoNCg0KIyBTdGFja2VkIDoNClNwLnZhci5wYXJ0MiRUYXhhX05hbWVzIDwtIHN1YigiXyIsICIgIiwgU3AudmFyLnBhcnQyJFRheGFfTmFtZXMpDQpTcC52YXIucGFydDIkVGF4YV9OYW1lcyA8LSBmYWN0b3IoU3AudmFyLnBhcnQyJFRheGFfTmFtZXMsIGxldmVscyA9IHVuaXF1ZShTcC52YXIucGFydDIkVGF4YV9OYW1lcykpDQpTcC52YXIucGFydDINCg0KU3AudmFyLnBhcnQyX3Bsb3QgPC0gZ2dwbG90KFNwLnZhci5wYXJ0MiwgYWVzKGZpbGw9Zm9yY2F0czo6ZmN0X2luZnJlcShFbnYpLCB5PXZhbHVlLCB4PXJlb3JkZXIoVGF4YV9OYW1lcywgZGVzYyhUYXhhX05hbWVzKSkpKSArIA0KICBnZW9tX2JhcihzdGF0PSJpZGVudGl0eSIsIHBvc2l0aW9uID0gcG9zaXRpb25fc3RhY2socmV2ZXJzZT1UUlVFKSkgKyANCiAgeWxpbSgwLDEpKw0KICBndWlkZXMoZmlsbCA9IGd1aWRlX2xlZ2VuZChyZXZlcnNlPVRSVUUsIG5yb3c9NCxieXJvdz1UUlVFKSkgKyANCiAgc2NhbGVfZmlsbF9tYW51YWwodmFsdWVzID0gY29sLCANCiAgICAgICAgICAgICAgICAgICAgbGFiZWxzID0gDQogICAgICAgICAgICAgICAgICAgICNjKCJEZXB0aCIsICJUZW1wZXJhdHVyZSIsICJTYWxpbml0eSIsICJPeHlnZW4iLA0KICAgICAgICAgICAgICAgICAgICAjICAiVHVyYmlkaXR5IiwgIkZsdW9yZXNjZW5jZSIsICJSYW5kb206IFN0YXRpb24iLCAiUmFuZG9tOiBIYWJpdGF0IikpKw0KICAgICAgICAgICAgICAgICAgIGMoIkRlcHRoIChtZWFuID0gMjUuNikiLCJUZW1wIChtZWFuID0gMTIuMSkiLCAiU2FsaW5pdHkgKG1lYW4gPSAyMC45KSIsIk94eWdlbiAobWVhbiA9IDE3LjkpIiwgDQogICAgICAgICAgICAgICAgICAgICAgICAiVHVyYmlkaXR5IChtZWFuID0gMTEuNCkiLCJGbG91cmVzY2VuY2UgKG1lYW4gPSAxMC41KSIsDQogICAgICAgICAgICAgICAgICAgICAiUmFuZG9tOiBzdGF0aW9uIChtZWFuID0gMS4xKSIsIlJhbmRvbTogSGFiaXRhdCAobWVhbiA9IDAuNCkiKSkgKw0KICB4bGFiICgiVGF4YSIpICsgDQogIHlsYWIoZXhwcmVzc2lvbihwYXN0ZSgiVGF4YSBuaWNoZSBleHBsYWluZWQgdmFyaWFuY2UgcGFydGl0aW9uZWQgKCAiLGl0YWxpYygiVGp1ciBSIikse31eMixpdGFsaWMoIikiKSkpKSsNCiAgdGhlbWUobGVnZW5kLnBvc2l0aW9uPWMoMC43NSwwLjgpLCBsZWdlbmQudGl0bGUgPSBlbGVtZW50X2JsYW5rKCksIygiTWVhbiBleHBsYWluZWQgdmFyaWFuY2UgKCUpIiksDQogICAgICAgIGxlZ2VuZC50ZXh0ID0gZWxlbWVudF90ZXh0KHNpemUgPSAxNiksIGxlZ2VuZC5iYWNrZ3JvdW5kID0gZWxlbWVudF9yZWN0KGZpbGw9IndoaXRlIiksDQogICAgICAgICNwYW5lbC5ncmlkLm1ham9yID0gZWxlbWVudF9saW5lKGNvbG91ciA9ICJncmF5OTAiLCBsaW5ldHlwZSA9IDIpLA0KICAgICAgICAjcGFuZWwuZ3JpZC5taW5vciA9IGVsZW1lbnRfbGluZShjb2xvdXIgPSAiZ3JheTg1IiwgbGluZXR5cGUgPSAyKSwNCiAgICAgICAgcGFuZWwuYmFja2dyb3VuZCA9IGVsZW1lbnRfcmVjdChmaWxsID0gIndoaXRlIiksDQogICAgICAgICNsZWdlbmQuYm94ID0gImhvcml6b250YWwiLCANCiAgICAgICAgYXhpcy50ZXh0PWVsZW1lbnRfdGV4dChzaXplID0gMTYpLA0KICAgICAgICBheGlzLnRpdGxlPWVsZW1lbnRfdGV4dChzaXplPTE4KSwjZmFjZT0iYm9sZCIpLA0KICAgICAgICBwbG90LnRpdGxlID0gZWxlbWVudF90ZXh0KGZhY2U9IDIsIHNpemU9MjApLCANCiAgICAgICAgbGVnZW5kLnRleHQuYWxpZ24gPSAxLA0KICAgICAgICBheGlzLnRleHQueCA9IGVsZW1lbnRfdGV4dChhbmdsZSA9IDkwLCB2anVzdCA9IDAuNSwgaGp1c3Q9MSwgc2l6ZSA9IDEyKSkgIA0KDQpTcC52YXIucGFydDJfcGxvdA0KDQojZ2dzYXZlKCJWYXJpYW5jZV9wYXJ0LnBuZyIsDQojICAgICAgIHBsb3QgPSBTcC52YXIucGFydDJfcGxvdCwNCiMgICAgICAgd2lkdGggPSAxNywNCiMgICAgICAgaGVpZ2h0ID0gMTAsDQojICAgICAgIHVuaXRzID0gImluIiwNCiMgICAgICAgZHBpID0gNDAwLA0KIyAgICAgICBsaW1pdHNpemUgPSBUUlVFKQ0KYGBgDQo=</div>
 
 
 

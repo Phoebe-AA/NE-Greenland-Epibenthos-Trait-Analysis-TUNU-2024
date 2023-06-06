@@ -78,7 +78,7 @@ vioplot(psrf.beta,col=rainbow_hcl(1),ylim=c(0.98,1.04),
 ```
 Check summaries 
 ```{r}
-summary(ma)
+summary(psrf.beta)
 model
 ```
 ##### Checking GAMMA parameter diagnostics
@@ -101,16 +101,14 @@ vioplot(psrf.gamma,col=rainbow_hcl(1),ylim=c(0.98,1.04),
 ```
 Check summaries  
 ```{r}
-summary(ma)
+summary(psrf.gamma)
 model
 ```
 
 ##### Checking RHO parameter diagnostics
 ```{r}
 summary(mpost$Rho) # posterior distribution of rho reveals strong evidence for phylogenetic signal p = 1
-#mpost$Rho
 effectiveSize(mpost$Rho)
-#gelman.diag(mpost$Rho)$psrf
 gelman.diag(mpost$Rho, multivariate = FALSE, autoburnin = FALSE)$psrf
 max(gelman.diag(mpost$Rho, multivariate = FALSE, autoburnin = FALSE)$psrf)
 sd(gelman.diag(mpost$Rho, multivariate = FALSE, autoburnin = FALSE)$psrf)
@@ -118,7 +116,7 @@ sd(gelman.diag(mpost$Rho, multivariate = FALSE, autoburnin = FALSE)$psrf)
 
 #### Beta Plot 
 ```{r}
-for(j in 1:nm){
+for(j in 1){
   m = model[[j]]
   postBeta = getPostEstimate(m, parName="Beta")
   show.sp.names = (is.null(m$phyloTree) && m$ns<=20) 
@@ -154,7 +152,7 @@ for(j in 1:nm){
 
 #### Gamma Plot 
 ```{r}
-for(j in 1:nm){
+for(j in 1){
   if(m$nt>1){
     m = model[[j]]
     postGamma = getPostEstimate(m, parName="Gamma")
@@ -168,6 +166,29 @@ for(j in 1:nm){
   }
 }
 ```
+#### Evaluate Model Fit 
+```{r}
+preds <- computePredictedValues(model[[1]])
+MF <- evaluateModelFit(hM=model[[1]], predY=preds)
+MF # RMSE and R2 for normal distribution 
+
+P <- colMeans(model[[1]]$Y > 0)
+
+hist(MF$TjurR2, xlim = c(0,1), main=paste0("Mean = ", round(mean(MF$TjurR2),2)))
+mean(MF$TjurR2, na.rm = TRUE)
+sd(MF$TjurR2, na.rm = TRUE)
+mean(MF$RMSE, na.rm = TRUE)
+mean(MF$AUC, na.rm = TRUE)
+
+#Se HMSC_model_PA.R for prevelance. 
+par(mfrow=c(1,2))
+plot(MF$TjurR2~P, xlab = "Prevalance", ylab = "TjurR2",
+     bg="pink", pch=21, main = "A") # Looks good. Greater prevelance = higher Exp. 
+p_jitter <- jitter(P)                     # Apply jitter R function
+plot(MF$AUC~p_jitter,  xlab = "Prevalance", ylab = "AUC", 
+     bg="pink", pch=21, main = "B")
+
+```
 
 ##### Variance Partitioning 
 ```{r}
@@ -180,10 +201,6 @@ VP <- computeVariancePartitioning(model[[1]])
 (VP$R2T$Y) #  the proportion of variance that the included traits explain out of species abundances
 
 VP
-```
-
-Save as a dataframe
-```{r}
 v.part <- as.data.frame(VP$vals)
 v.part <- as.data.frame(t(v.part))
 v.part$Taxa <- rownames(v.part)
@@ -260,38 +277,3 @@ Sp.var.part2_plot
 #       dpi = 400,
 #       limitsize = TRUE)
 ```
-
-
-#### Other supplementary plots 
-```{r}
-subset(model$XData, model$XData$Habitat=="Fjord")
-subset(model$XData, model$XData$Habitat=="Shelf")
-subset(model$XData, model$XData$Habitat=="Shelfbreak")
-subset(model$XData, model$XData$Habitat=="Slope")
-```
-
-```{r}
-plot(Depth~Station, col=Habitat, pch=19,data = model$XData)
-plot(Oxygen~Station, col=Habitat, pch=19,data = model$XData)
-plot(Flourescence~Station, col=Habitat, pch=19,data = model$XData)
-plot(B.Temp~Station, col=Habitat, pch=19,data = model$XData)
-plot(B.PSU~Station, col=Habitat, pch=19,data = model$XData)
-plot(Turbidity~Station, col=Habitat, pch=19,data = model$XData)
-```
-
-```{r}
-par(mfrow=c(3,2), mar=c(4,4.5,1,0.5))
-boxplot(Depth~Habitat, pch=19,data = model$XData,
-        ylab = "Water Depth (m)")
-boxplot(B.Temp~Habitat, pch=19,data = model$XData,
-        ylab = "Bottom Temperature (\u00B0C)")
-boxplot(B.PSU~Habitat, pch=19,data = model$XData,
-        ylab = "Bottom Salinity (PSU)")
-boxplot(Oxygen~Habitat, pch=19,data = model$XData,
-        ylab = expression(paste("Bottom Oxygen (ml L"^" -1",")")))
-boxplot(Turbidity~Habitat, pch=19,data = model$XData,
-        ylab = "Turbidity (FTU)")
-boxplot(Flourescence~Habitat, pch=19,data = model$XData,
-        ylab = "Fluorescence")
-```
-
