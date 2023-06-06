@@ -24,7 +24,7 @@ knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.show = "hide", resul
 knitr::write_bib(c("base", "bookdown", "rmarkdown"), "packages.bib")
 ```
 
-#### Load libraries
+### Load libraries
 ```{r}
 library(Hmsc)
 library(colorspace)
@@ -37,14 +37,16 @@ library(ggplot2)
 library(viridis)
 library(tidyr)
 ```
-#### Load model and set new parameters
-include in samples_list and thin_list only those model that you have actually fitted
+### Load model
+
 ```{r}
 load("models/models_thin_1000_samples_250_chains_4.Rdata") #model, modelnames
 models
 modelnames
 model <- models
 ```
+### Set parameters
+include in "samples_list" and "thin_list" only those in the model that you have actually fitted
 
 ```{r}
 samples_list = 250#c(5, 250,250,250)
@@ -54,8 +56,9 @@ nChains = 4
 ```
 
 
-#### Evaluate converge 
-##### Checking BETA parameter diagnostics 
+### Evaluate converge 
+#### BETA parameter 
+Get Post sample estimates, effective size, and gelman diagnostics
 ```{r}
 mpost = convertToCodaObject(model[[1]])
 postBeta = getPostEstimate(model[[1]], parName = "Beta") 
@@ -64,11 +67,16 @@ mean(ess.beta)
 psrf.beta = gelman.diag(mpost$Beta, multivariate = FALSE, autoburnin = FALSE)$psrf
 hist(ess.beta)
 hist(psrf.beta, xlab="Potential scale reduction factor (beta)")
+```
+Check summaries 
+```{r}
+summary(psrf.beta)
 mean(gelman.diag(mpost$Beta, multivariate = FALSE, autoburnin = FALSE)$psrf)
 sd(gelman.diag(mpost$Beta, multivariate = FALSE, autoburnin = FALSE)$psrf)
 max(gelman.diag(mpost$Beta, multivariate = FALSE, autoburnin = FALSE)$psrf)
 ```
-Plot the diagnostics
+
+Plot the diagnostics (supplementary material plots)
 ```{r}
 par(mfrow=c(2,1))
 vioplot(psrf.beta,col=rainbow_hcl(1), ylim=c(0,max(psrf.beta)),
@@ -76,45 +84,50 @@ vioplot(psrf.beta,col=rainbow_hcl(1), ylim=c(0,max(psrf.beta)),
 vioplot(psrf.beta,col=rainbow_hcl(1),ylim=c(0.98,1.04),
         main="psrf(beta)")
 ```
-Check summaries 
-```{r}
-summary(psrf.beta)
-model
-```
-##### Checking GAMMA parameter diagnostics
+
+#### GAMMA parameter
+Get Post sample estimates, effective size, and gelman diagnostics
 ```{r}
 ess.gamma = effectiveSize(mpost$Gamma)
 mean(ess.gamma)
 psrf.gamma = gelman.diag(mpost$Gamma, multivariate = FALSE, autoburnin = FALSE)$psrf
 hist(ess.gamma)
 hist(psrf.gamma, xlab="Potential scale reduction factor (gamma)")
+```
+Check summaries
+```{r}
+summary(psrf.gamma)
 mean(gelman.diag(mpost$Gamma, multivariate = FALSE, autoburnin = FALSE)$psrf)
 sd(gelman.diag(mpost$Gamma, multivariate = FALSE, autoburnin = FALSE)$psrf)
 max(gelman.diag(mpost$Gamma, multivariate = FALSE, autoburnin = FALSE)$psrf)
 ```
-Plot the diagnostics
+
+Plot the diagnostics (supplementary material plots)
 ```{r}
 vioplot(psrf.gamma,col=rainbow_hcl(1),ylim=c(0,max(psrf.gamma)),
         main="psrf(gamma)")
 vioplot(psrf.gamma,col=rainbow_hcl(1),ylim=c(0.98,1.04),
         main="psrf(gamma)")
 ```
-Check summaries  
-```{r}
-summary(psrf.gamma)
-model
-```
 
-##### Checking RHO parameter diagnostics
+
+#### RHO parameter
+Get Post sample estimates, effective size, and gelman diagnostics
 ```{r}
-summary(mpost$Rho) # posterior distribution of rho reveals strong evidence for phylogenetic signal p = 1
 effectiveSize(mpost$Rho)
 gelman.diag(mpost$Rho, multivariate = FALSE, autoburnin = FALSE)$psrf
 max(gelman.diag(mpost$Rho, multivariate = FALSE, autoburnin = FALSE)$psrf)
 sd(gelman.diag(mpost$Rho, multivariate = FALSE, autoburnin = FALSE)$psrf)
 ```
 
-#### Beta Plot 
+Check summaries
+```{r}
+summary(mpost$Rho) # posterior distribution of rho reveals strong evidence for phylogenetic signal p = 1
+max(gelman.diag(mpost$Rho, multivariate = FALSE, autoburnin = FALSE)$psrf)
+sd(gelman.diag(mpost$Rho, multivariate = FALSE, autoburnin = FALSE)$psrf)
+```
+
+### Beta Plot 
 ```{r}
 for(j in 1){
   m = model[[j]]
@@ -150,7 +163,7 @@ for(j in 1){
 
 ```
 
-#### Gamma Plot 
+### Gamma Plot 
 ```{r}
 for(j in 1){
   if(m$nt>1){
@@ -166,31 +179,39 @@ for(j in 1){
   }
 }
 ```
-#### Evaluate Model Fit 
+### Evaluate Model Fit 
+Compute and evaluate model using TjurR2 and AUC
 ```{r}
 preds <- computePredictedValues(model[[1]])
 MF <- evaluateModelFit(hM=model[[1]], predY=preds)
-MF # RMSE and R2 for normal distribution 
-
-P <- colMeans(model[[1]]$Y > 0)
-
+MF 
+```
+Check summary statistics 
+```{r}
 hist(MF$TjurR2, xlim = c(0,1), main=paste0("Mean = ", round(mean(MF$TjurR2),2)))
 mean(MF$TjurR2, na.rm = TRUE)
 sd(MF$TjurR2, na.rm = TRUE)
-mean(MF$RMSE, na.rm = TRUE)
 mean(MF$AUC, na.rm = TRUE)
-
-#Se HMSC_model_PA.R for prevelance. 
-par(mfrow=c(1,2))
-plot(MF$TjurR2~P, xlab = "Prevalance", ylab = "TjurR2",
-     bg="pink", pch=21, main = "A") # Looks good. Greater prevelance = higher Exp. 
-p_jitter <- jitter(P)                     # Apply jitter R function
-plot(MF$AUC~p_jitter,  xlab = "Prevalance", ylab = "AUC", 
-     bg="pink", pch=21, main = "B")
-
+sd(MF$AUC, na.rm = TRUE)
 ```
 
-##### Variance Partitioning 
+Plot model fit (TjurR2 and AUC)
+```{r}
+# P = Taxa prevelance
+P <- colMeans(model[[1]]$Y > 0)
+
+par(mfrow=c(1,2))
+p_jitter <- jitter(P) 
+plot(MF$TjurR2~p_jitter, xlab = "Prevalance", ylab = "TjurR2",
+     bg="pink", pch=21, main = "A") # Looks good. Greater prevelance = higher Exp. 
+                    # Apply jitter R function
+plot(MF$AUC~p_jitter,  xlab = "Prevalance", ylab = "AUC", 
+     bg="pink", pch=21, main = "B")
+```
+
+
+### Variance Partitioning 
+Compute variance paritioning 
 ```{r}
 head(model$X)
 par(mfrow=c(1,1))

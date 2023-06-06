@@ -1,5 +1,5 @@
 ---
-title: "NE Greenland Trait Analysis: HMSC"
+title: "NE Greenland Trait Analysis: Setting the model in HMSC"
 author: "Phoebe Armitage"
 date: '2023-June'
 output:
@@ -19,22 +19,22 @@ editor_options:
 ---
 
 ```{r include=FALSE}
-knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.show = "hide", results = "hide")
+knitr::opts_chunk$set(message = FALSE, warning = FALSE, fig.show = "hide", results = "hide", eval = FALSE)
 # to cite specific packages
 knitr::write_bib(c("base", "bookdown", "rmarkdown"), "packages.bib")
 ```
-#### Load libraries 
+### Load libraries 
 ```{r}
-library(Hmsc); library(corrplot); library("vioplot"); library("colorspace"); library(parallel)
+library(Hmsc); library(corrplot); library(vioplot); library(colorspace); library(parallel)
 ```
-#### Load data 
+### Load data 
 ```{r}
 load(file = "allData_A.R")
 localDir = "."
 #data.directory = file.path(localDir, "data")
 model.directory = file.path(localDir, "models")
 ```
-#### Look at raw data 
+### Look at raw data 
 ```{r}
 set.seed (1)
 range(colMeans(Y>0))
@@ -47,8 +47,9 @@ names(X)
 plot(X)
 ```
 
-#### Setting up the HMSC model
-XFormula is for the environmental input you want for the model 
+### The HMSC model
+##### First we need to set up all the parameters and syntax.
+XFormula is for the environmental input you want for the model so here we need to define which environmental covariates we want. 
 ```{r}
 XFormula <- ~ Depth + B.Temp + B.PSU + Oxygen + Turbidity  + Flourescence
 ```
@@ -72,12 +73,12 @@ rL = HmscRandomLevel(units = studyDesign$sample)
 rL2 = HmscRandomLevel(units = studyDesign$habitat)
 ```
 
-The taxa data is zero-inflated and comprised of many rare occurrences. Additionally, there are few stations within the habitats and no replicates. Therefore, a more conservative model will be used. Since the abundance dataset has recorded more years than the biomass, then the abundance dataset will be used. Henceforth, here is the code to convert the presence-absence model: 
+The taxa data is zero-inflated and comprised of many rare occurrences. Additionally, there are the stations within the habitats have no replicates. Therefore, a more conservative model will be used: presence-absence using the probit link function. Since the abundance / biomass data are the same taxa recorded differently but the abundance data set has been recorded over more years than the biomass, then the abundance data set will be used. Henceforth, here is the code to convert the taxa abundance data frame into presence-absence data: 
 ```{r}
 Ypa <- 1*(Y>0)
 ```
 
-The model: 
+Defining the model
 ```{r}
 m1 <- Hmsc(Y=Ypa, XData = X, XFormula = XFormula,
            TrData = Tr, TrFormula = TrFormula,
@@ -87,13 +88,14 @@ m1 <- Hmsc(Y=Ypa, XData = X, XFormula = XFormula,
            distr = "probit")
 ```
 
-Reassign into syntax (NB: This is a good way for when running multiple models)
+Reassign into syntax 
+(NB: This is a good way for when running multiple models)
 ```{r}
 models <- list(m1)
 modelnames <- "presence_absence"
 ```
 
-Set MCMC parameters 
+Set MCMC parameters and run model
 ```{r}
 samples_list = 250
 thin_list = 1000
@@ -123,7 +125,7 @@ for(Lst in 1:length(samples_list)){
 }
 ```
 
-Check model looks okay
+Check model
 ```{r}
 #Call model 
 model <- models[[j]]
