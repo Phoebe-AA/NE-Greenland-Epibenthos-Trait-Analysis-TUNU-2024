@@ -11,6 +11,7 @@ DATA
 All data (taxa abundance or biomass data, taxononmic trees (phy or P), traits, and environmental data)
 are stored in R files, allData_A.R and allData_B.R. 
 These can be downloaded and opened in R, where you will then have all of data frames in your global Environment. 
+For .csv versions of the abundance, biomass, and trait data please visit https://doi.org/10.5281/zenodo.10716116.
 The RMarkdown files will guide you to be able to assign names for the downloaded files. 
 See information on RMarkdown files below.  
 

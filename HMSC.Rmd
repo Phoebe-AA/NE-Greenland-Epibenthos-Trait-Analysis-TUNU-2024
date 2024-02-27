@@ -34,28 +34,16 @@ localDir = "."
 #data.directory = file.path(localDir, "data")
 model.directory = file.path(localDir, "models")
 ```
-## Look at raw data 
-```{r}
-set.seed (1)
-range(colMeans(Y>0))
-hist(colMeans(Y>0), main = "prevalence")
-hist(log(Y[Y>0]), main = "log abundance conditional on presence")
-hist(rowSums(Y>0))
-#Species richness across samples. 
-names(X)
-#Explore the correlations between the variables. 
-plot(X)
-```
 
 ## The HMSC model
 First we need to set up all the parameters and syntax.
 ### Environmental covariates (fixed effects)
-XFormula is for the environmental input you want for the model so here we need to define which environmental covariates we want. 
+Here we define the regression model of the fixed effects (XFormula) including the environmental covariates.
 ```{r}
 XFormula <- ~ Depth + B.Temp + B.PSU + Oxygen + Turbidity  + Flourescence
 ```
 ### Traits 
-TrFormula is the traits you want included in the model 
+Here we define the regression model that considers species traits
 ```{r}
 TrFormula <- ~ Small + Small_med + Medium_S + Med_large + Large +
 Globulose + Vermiform + Dorso_com + Later_com +  Upright +
@@ -67,16 +55,15 @@ Globulose + Vermiform + Dorso_com + Later_com +  Upright +
   Boreal + Cosmo
 ```
 ### Study design (random effects)
-Now create the study design. Then assign the random factors from the study design. 
+Now we create the study design from which we assign the random effect levels.
 ```{r}
 studyDesign = data.frame(sample = as.factor(1:nrow(S)), habitat = as.factor(S$Habitat)) 
 rL = HmscRandomLevel(units = studyDesign$sample) 
 rL2 = HmscRandomLevel(units = studyDesign$habitat)
 ```
 ### Presence-absence data 
-The taxa data is zero-inflated and comprised of many rare occurrences. Additionally, there are the stations within the habitats have no replicates. Therefore, a more conservative model will be used: presence-absence using the probit link function. Since the abundance / biomass data are the same taxa recorded differently but the abundance data set has been recorded over more years than the biomass, then the abundance data set will be used. Henceforth, here is the code to convert the taxa abundance data frame into presence-absence data: 
 ```{r}
-Ypa <- 1*(Y>0)
+Ypa <- 1*(Y>0) # covert species abundance matrix to presence absence records
 ```
 
 ### Defining the model
@@ -89,9 +76,9 @@ m1 <- Hmsc(Y=Ypa, XData = X, XFormula = XFormula,
            distr = "probit")
 ```
 
-Reassign into syntax 
-(NB: This is a good way for when running multiple models)
 ```{r}
+#Reassign into syntax 
+#NB: This is a good when running multiple models
 models <- list(m1)
 modelnames <- "presence_absence"
 ```

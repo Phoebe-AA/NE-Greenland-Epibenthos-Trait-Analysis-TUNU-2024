@@ -49,8 +49,8 @@ model <- models
 include in "samples_list" and "thin_list" only those in the model that you have actually fitted
 
 ```{r}
-samples_list = 250#c(5, 250,250,250)
-thin_list = c(1000)#c(1,1,10,100)
+samples_list = 250
+thin_list = 1000
 nst = length(thin_list)
 nChains = 4
 ```
@@ -58,7 +58,7 @@ nChains = 4
 
 ## Evaluate converge 
 ### BETA parameter 
-Get Post sample estimates, effective size, and gelman diagnostics
+Get posterior estimates; effective sample size (ess) and gelman diagnostics as potential scale reduction factor (psrf)”
 ```{r}
 mpost = convertToCodaObject(model[[1]])
 postBeta = getPostEstimate(model[[1]], parName = "Beta") 
@@ -86,7 +86,7 @@ vioplot(psrf.beta,col=rainbow_hcl(1),ylim=c(0.98,1.04),
 ```
 
 ### GAMMA parameter
-Get Post sample estimates, effective size, and gelman diagnostics
+Same as for beta parameters
 ```{r}
 ess.gamma = effectiveSize(mpost$Gamma)
 mean(ess.gamma)
@@ -94,7 +94,7 @@ psrf.gamma = gelman.diag(mpost$Gamma, multivariate = FALSE, autoburnin = FALSE)$
 hist(ess.gamma)
 hist(psrf.gamma, xlab="Potential scale reduction factor (gamma)")
 ```
-Check summaries
+
 ```{r}
 summary(psrf.gamma)
 mean(gelman.diag(mpost$Gamma, multivariate = FALSE, autoburnin = FALSE)$psrf)
@@ -102,7 +102,6 @@ sd(gelman.diag(mpost$Gamma, multivariate = FALSE, autoburnin = FALSE)$psrf)
 max(gelman.diag(mpost$Gamma, multivariate = FALSE, autoburnin = FALSE)$psrf)
 ```
 
-Plot the diagnostics (supplementary material plots)
 ```{r}
 vioplot(psrf.gamma,col=rainbow_hcl(1),ylim=c(0,max(psrf.gamma)),
         main="psrf(gamma)")
@@ -112,7 +111,7 @@ vioplot(psrf.gamma,col=rainbow_hcl(1),ylim=c(0.98,1.04),
 
 
 ### RHO parameter
-Get Post sample estimates, effective size, and gelman diagnostics
+Same as for beta and gamma parameters
 ```{r}
 effectiveSize(mpost$Rho)
 gelman.diag(mpost$Rho, multivariate = FALSE, autoburnin = FALSE)$psrf
@@ -120,7 +119,6 @@ max(gelman.diag(mpost$Rho, multivariate = FALSE, autoburnin = FALSE)$psrf)
 sd(gelman.diag(mpost$Rho, multivariate = FALSE, autoburnin = FALSE)$psrf)
 ```
 
-Check summaries
 ```{r}
 summary(mpost$Rho) # posterior distribution of rho reveals strong evidence for phylogenetic signal p = 1
 max(gelman.diag(mpost$Rho, multivariate = FALSE, autoburnin = FALSE)$psrf)
@@ -129,56 +127,26 @@ sd(gelman.diag(mpost$Rho, multivariate = FALSE, autoburnin = FALSE)$psrf)
 
 ## Beta Plot 
 ```{r}
-for(j in 1){
-  m = model[[j]]
-  postBeta = getPostEstimate(m, parName="Beta")
-  show.sp.names = (is.null(m$phyloTree) && m$ns<=20) 
-  plotBeta(m, post=postBeta, supportLevel = 0.90,param="Sign",
-           plotTree = !is.null(m$phyloTree),
+postBeta = getPostEstimate(model[[1]], parName="Beta")
+plotBeta(model[[1]], post=postBeta, supportLevel = 0.90,param="Sign",
+           plotTree = TRUE,
            covNamesNumbers = c(TRUE,FALSE),
-           spNamesNumbers=c(show.sp.names,FALSE),
+           spNamesNumbers=c(FALSE,FALSE),
            cex = c(1, 1, 1), mar=c(8,0,1,0), marTree = c(8,5,1,0), 
-           #cex=c(0.6,0.6,0.8),  
            split = 0.4, 
            colors = colorRampPalette(c("darkslategray3","white", "darkslategray")))
-  mymain = paste0("BetaPlot, ",modelnames[[j]])
-  if(!is.null(m$phyloTree)){
-    mpost = convertToCodaObject(m)
-    rhovals = unlist(poolMcmcChains(mpost$Rho))
-    mymain = paste0(mymain,", E[rho] = ",round(mean(rhovals),2),", Pr[rho>0] = ",round(mean(rhovals>0),2))
-  }
-  title(main=mymain, line=2.5, cex.main=0.8)
-  
-  me = as.data.frame(t(postBeta$mean))
-  me = cbind(m$spNames,me)
-  colnames(me) = c("Species",m$covNames)
-  po = as.data.frame(t(postBeta$support))
-  po = cbind(m$spNames,po)
-  colnames(po) = c("Species",m$covNames)
-  ne = as.data.frame(t(postBeta$supportNeg))
-  ne = cbind(m$spNames,ne)
-  colnames(ne) = c("Species",m$covNames)
-  vals = list("Posterior mean"=me,"Pr(x>0)"=po,"Pr(x<0)"=ne)
-}
-
 ```
-
 ## Gamma Plot 
 ```{r}
-for(j in 1){
-  if(m$nt>1){
-    m = model[[j]]
-    postGamma = getPostEstimate(m, parName="Gamma")
-    plotGamma(m, post=postGamma, supportLevel = 0.90, param="Sign",
+postGamma = getPostEstimate(model[[1]], parName="Gamma")
+plotGamma(model[[1]], post=postGamma, supportLevel = 0.90, param="Sign",
               covNamesNumbers = c(TRUE,FALSE),
               trNamesNumbers=c(TRUE,FALSE),
-              #cex=c(0.6,0.6,0.8), 
              mar=c(8,10,1,0),
-              cex = c(1, 1, 1), colors = colorRampPalette(c("darkslategray3","white", "darkslategray")))
-    title(main=paste0("GammaPlot ",modelnames[[j]]), line=2.5,cex.main=0.8)
-  }
-}
+             cex = c(1, 1, 1), colors = colorRampPalette(c("darkslategray3","white", "darkslategray")))
+
 ```
+
 ## Evaluate Model Fit 
 Compute and evaluate model using TjurR2 and AUC
 ```{r}
